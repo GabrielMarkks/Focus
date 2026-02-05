@@ -1,4 +1,7 @@
 const App = {
+    // ============================================================
+    // 1. MODEL (Dados & Persistência)
+    // ============================================================
     Model: {
         usuario: {
             nome: "",
@@ -7,7 +10,6 @@ const App = {
             tarefas: [],
             historico: [],
             habitos: [],
-            // Adicionamos o campo 'provider' na config
             config: {
                 tempoFocoMinutos: 25,
                 tema: 'light',
@@ -23,8 +25,9 @@ const App = {
             tarefaId: null,
             startTime: null
         },
-        citacoes: ["Menos, porém melhor.", "O foco é a nova moeda.", "1% melhor todo dia.", "Feito é melhor que perfeito."],
+        citacoes: ["Menos, porém melhor.", "O foco é a nova moeda.", "1% melhor todo dia.", "Feito é melhor que perfeito.", "Sua atenção é seu maior ativo."],
 
+        // --- Persistência ---
         salvar() {
             try {
                 localStorage.setItem('focusApp_user', JSON.stringify(this.usuario));
@@ -32,6 +35,7 @@ const App = {
                 console.error(e)
             }
         },
+
         carregar() {
             const d = localStorage.getItem('focusApp_user');
             if (d) {
@@ -41,15 +45,13 @@ const App = {
                         ...this.usuario,
                         ...p
                     };
+                    // Blindagem de Arrays
                     ['tarefas', 'historico', 'habitos'].forEach(k => {
                         if (!Array.isArray(this.usuario[k])) this.usuario[k] = [];
                     });
-
-                    // Garante Configuração Padrão
+                    // Blindagem de Config
                     if (!this.usuario.config) this.usuario.config = {};
                     if (!this.usuario.config.provider) this.usuario.config.provider = 'gemini';
-                    if (!this.usuario.config.apiKey) this.usuario.config.apiKey = '';
-                    if (!this.usuario.config.tempoFocoMinutos) this.usuario.config.tempoFocoMinutos = 25;
 
                     this.checkDia();
                     return true;
@@ -59,30 +61,34 @@ const App = {
             }
             return false;
         },
+
         checkDia() {
-            const h = new Date().toDateString();
-            let m = false;
-            if (Array.isArray(this.usuario.habitos)) this.usuario.habitos.forEach(x => {
-                if (x.ultimaData !== h) {
-                    x.concluidoHoje = false;
-                    m = true;
-                }
-            });
-            if (m) this.salvar();
+            const hoje = new Date().toDateString();
+            let mudou = false;
+            if (Array.isArray(this.usuario.habitos)) {
+                this.usuario.habitos.forEach(h => {
+                    if (h.ultimaData !== hoje) {
+                        h.concluidoHoje = false;
+                        mudou = true;
+                    }
+                });
+            }
+            if (mudou) this.salvar();
         },
+
         atualizarUsuario(k, v) {
             this.usuario[k] = v;
             this.salvar();
         },
 
-        // CRUD
-        addTarefa(t, i, u, tipo = 'manutencao', inbox = false) {
+        // --- CRUD Tarefas ---
+        addTarefa(texto, imp, urg, tipo = 'manutencao', inbox = false) {
             if (!Array.isArray(this.usuario.tarefas)) this.usuario.tarefas = [];
             this.usuario.tarefas.push({
                 id: Date.now() + Math.random(),
-                texto: t,
-                importante: i,
-                urgente: u,
+                texto,
+                importante: imp,
+                urgente: urg,
                 tipo,
                 isInbox: inbox,
                 feita: false
@@ -90,20 +96,21 @@ const App = {
             this.salvar();
         },
         atualizarTarefa(id, dados) {
-            const t = this.obterTarefa(id);
+            // Busca flexível (String vs Number)
+            const t = this.usuario.tarefas.find(task => String(task.id) === String(id));
             if (t) {
                 Object.assign(t, dados);
                 this.salvar();
             }
         },
-        concluirTarefa(id, min) {
-            const idx = this.usuario.tarefas.findIndex(t => t.id === id);
+        concluirTarefa(id, minutos) {
+            const idx = this.usuario.tarefas.findIndex(t => t.id == id); // Comparação flexível
             if (idx !== -1) {
                 const t = this.usuario.tarefas[idx];
                 this.usuario.historico.push({
                     ...t,
                     dataConclusao: new Date().toISOString(),
-                    tempoInvestido: min,
+                    tempoInvestido: minutos,
                     feita: true
                 });
                 this.usuario.tarefas.splice(idx, 1);
@@ -112,7 +119,7 @@ const App = {
         },
         delTarefa(id) {
             if (Array.isArray(this.usuario.tarefas)) {
-                this.usuario.tarefas = this.usuario.tarefas.filter(t => t.id !== id);
+                this.usuario.tarefas = this.usuario.tarefas.filter(t => t.id != id);
                 this.salvar();
             }
         },
@@ -120,22 +127,24 @@ const App = {
             this.usuario.tarefas = [];
             this.salvar();
         },
+
         obterTarefa(id) {
             if (!Array.isArray(this.usuario.tarefas)) return null;
-            return this.usuario.tarefas.find(t => t.id === id);
+            return this.usuario.tarefas.find(t => t.id == id); // Comparação flexível
         },
-        moverInboxParaMatriz(id, i, u, tipo) {
+
+        moverInboxParaMatriz(id, imp, urg, tipo) {
             const t = this.obterTarefa(id);
             if (t) {
                 t.isInbox = false;
-                t.importante = i;
-                t.urgente = u;
+                t.importante = imp;
+                t.urgente = urg;
                 t.tipo = tipo;
                 this.salvar();
             }
         },
 
-        // Habits & Analytics (Mantidos Iguais)
+        // --- CRUD Hábitos ---
         addHabito(t) {
             if (!Array.isArray(this.usuario.habitos)) this.usuario.habitos = [];
             this.usuario.habitos.push({
@@ -148,24 +157,29 @@ const App = {
             this.salvar();
         },
         toggleHabito(id) {
-            const h = (this.usuario.habitos || []).find(x => x.id === id);
+            const h = (this.usuario.habitos || []).find(x => x.id == id);
             if (h) {
-                const hj = new Date().toDateString();
+                const hoje = new Date().toDateString();
                 if (!h.concluidoHoje) {
                     h.concluidoHoje = true;
-                    h.ultimaData = hj;
+                    h.ultimaData = hoje;
                     h.streak++;
                 } else {
                     h.concluidoHoje = false;
+                    h.ultimaData = null;
                     h.streak = Math.max(0, h.streak - 1);
                 }
                 this.salvar();
             }
         },
         delHabito(id) {
-            this.usuario.habitos = (this.usuario.habitos || []).filter(x => x.id !== id);
-            this.salvar();
+            if (Array.isArray(this.usuario.habitos)) {
+                this.usuario.habitos = this.usuario.habitos.filter(x => x.id != id);
+                this.salvar();
+            }
         },
+
+        // --- Analytics ---
         getXP() {
             return (this.usuario.historico || []).reduce((a, b) => a + (b.tempoInvestido || 0), 0);
         },
@@ -215,8 +229,9 @@ const App = {
             });
             return d;
         },
+
         exportBackup() {
-            return JSON.stringify(this.usuario);
+            return JSON.stringify(this.usuario, null, 2);
         },
         importBackup(json) {
             try {
@@ -226,7 +241,7 @@ const App = {
                     this.salvar();
                     return true;
                 }
-            } catch (e) {}
+            } catch (e) { }
             return false;
         },
         obterFraseAleatoria() {
@@ -234,8 +249,10 @@ const App = {
         }
     },
 
+    // ============================================================
+    // 2. VIEW (Interface)
+    // ============================================================
     View: {
-        // Mantém toda a View igual, só adiciona a função toggleLoading
         els: {
             onboard: document.getElementById('view-onboarding'),
             dash: document.getElementById('view-dashboard'),
@@ -244,9 +261,9 @@ const App = {
         },
         audio: new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg'),
         ambience: {
-            chuva: new Audio('https://actions.google.com/sounds/v1/weather/rain_heavy_loud.ogg'),
-            cafe: new Audio('https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg'),
-            fluxo: new Audio('https://actions.google.com/sounds/v1/transportation/airplane_cabin_sounds.ogg')
+            chuva: 'https://actions.google.com/sounds/v1/weather/rain_heavy_loud.ogg',
+            cafe: 'https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg',
+            fluxo: 'https://actions.google.com/sounds/v1/transportation/airplane_cabin_sounds.ogg'
         },
         currentSound: null,
         charts: {},
@@ -260,6 +277,7 @@ const App = {
                 if (box.lastChild) box.lastChild.remove();
             }, 3500);
         },
+
         toggleLoading(show, msg = "Processando...") {
             let el = document.getElementById('loading-overlay');
             if (!el) {
@@ -275,11 +293,13 @@ const App = {
                 el.classList.remove('d-none');
             } else el.classList.add('d-none');
         },
+
         showStep(n) {
             document.querySelectorAll('.step-container').forEach(e => e.classList.add('d-none'));
             const s = document.getElementById(`step-${n}`);
             if (s) s.classList.remove('d-none');
         },
+
         toDash() {
             this.stopSound();
             Object.values(this.els).forEach(e => e && e.classList.add('d-none'));
@@ -292,13 +312,14 @@ const App = {
             const f = document.getElementById('frase-coach');
             if (f) f.innerText = `💡 "${App.Model.obterFraseAleatoria()}"`;
 
-            // Preenche Configs
+            // Popula Configs
             const key = document.getElementById('config-apikey');
             if (key) key.value = App.Model.usuario.config.apiKey || '';
             const prov = document.getElementById('config-provider');
             if (prov) prov.value = App.Model.usuario.config.provider || 'gemini';
             App.Controller.atualizarLinkKey();
         },
+
         toFocus(txt, min) {
             this.els.dash.classList.add('d-none');
             this.els.nav.classList.add('d-none');
@@ -314,10 +335,10 @@ const App = {
                 b.innerText = "🚀 FLUXO";
             }
             Object.values(this.ambience).forEach(a => {
-                a.loop = true;
-                a.volume = 0.5;
+                if (typeof a === 'object') a.pause();
             });
         },
+
         applyTheme() {
             document.documentElement.setAttribute('data-bs-theme', App.Model.usuario.config.tema || 'light');
         },
@@ -325,8 +346,8 @@ const App = {
             const el = document.getElementById('painel-historico');
             if (el) el.classList.toggle('d-none');
         },
+
         render() {
-            /* ... (Mesma função de render da versão anterior, sem alterações) ... */
             const ls = {
                 q1: document.getElementById('lista-q1'),
                 q2: document.getElementById('lista-q2'),
@@ -343,9 +364,10 @@ const App = {
                 q3: 0,
                 q4: 0
             };
+
             (App.Model.usuario.tarefas || []).forEach(t => {
                 const badge = t.tipo === 'crescimento' ? '<span class="badge badge-crescimento ms-2">🚀</span>' : '<span class="badge badge-manutencao ms-2">🔧</span>';
-                const html = `<li class="list-group-item d-flex justify-content-between align-items-center animate-fade-in"><div class="d-flex align-items-center gap-2 overflow-hidden w-100">${t.isInbox ? `<button class="btn btn-sm btn-outline-info rounded-circle" onclick="App.Controller.iniciarProcessamentoInbox(${t.id})"><i class="ph ph-list-plus"></i></button>` : `<button class="btn btn-sm btn-light rounded-circle border shadow-sm" onclick="App.Controller.startFocus(${t.id})"><i class="ph ph-play-fill text-primary"></i></button>`}<span class="task-text text-truncate">${t.texto}</span>${!t.isInbox?badge:''}</div><i class="ph ph-trash btn-delete-task ms-2" onclick="App.Controller.delTask(${t.id})"></i></li>`;
+                const html = `<li class="list-group-item d-flex justify-content-between align-items-center animate-fade-in"><div class="d-flex align-items-center gap-2 overflow-hidden w-100">${t.isInbox ? `<button class="btn btn-sm btn-outline-info rounded-circle" onclick="App.Controller.iniciarProcessamentoInbox(${t.id})"><i class="ph ph-list-plus"></i></button>` : `<button class="btn btn-sm btn-light rounded-circle border shadow-sm" onclick="App.Controller.startFocus(${t.id})"><i class="ph ph-play-fill text-primary"></i></button>`}<span class="task-text text-truncate">${t.texto}</span>${!t.isInbox ? badge : ''}</div><i class="ph ph-trash btn-delete-task ms-2" onclick="App.Controller.delTask(${t.id})"></i></li>`;
                 if (t.isInbox) ls.inbox.innerHTML += html;
                 else if (t.urgente && t.importante) {
                     ls.q1.innerHTML += html;
@@ -361,61 +383,63 @@ const App = {
                     counts.q4++
                 }
             });
+
             ['q1', 'q2', 'q3', 'q4'].forEach(k => {
                 const el = document.getElementById(`empty-${k}`);
                 if (el) counts[k] === 0 ? el.classList.remove('d-none') : el.classList.add('d-none');
             });
+
             const inboxPanel = document.getElementById('painel-inbox');
             if (ls.inbox.innerHTML.trim() !== "") {
                 inboxPanel.classList.remove('d-none');
                 document.getElementById('count-inbox').innerText = ls.inbox.children.length;
             } else inboxPanel.classList.add('d-none');
+
             (App.Model.usuario.historico || []).slice().reverse().slice(0, 5).forEach(t => ls.done.innerHTML += `<li class="list-group-item bg-transparent text-muted text-decoration-line-through d-flex justify-content-between"><span><i class="ph ph-check-circle text-success me-2"></i>${t.texto}</span><small>+${t.tempoInvestido}m</small></li>`);
             this.renderHabits();
         },
+
         renderHabits() {
             const lh = document.getElementById('lista-habitos');
             if (lh) {
                 lh.innerHTML = '';
                 (App.Model.usuario.habitos || []).forEach(h => {
-                    lh.innerHTML += `<li class="list-group-item d-flex justify-content-between"><div class="d-flex gap-3"><input class="form-check-input mt-0" type="checkbox" ${h.concluidoHoje?'checked':''} onchange="App.Controller.toggleHabit(${h.id})"><div><span class="fw-bold d-block ${h.concluidoHoje?'text-decoration-line-through text-muted':''}">${h.texto}</span><small class="text-warning"><i class="ph ph-fire"></i> ${h.streak}</small></div></div><i class="ph ph-x text-muted opacity-50" style="cursor:pointer" onclick="App.Controller.delHabit(${h.id})"></i></li>`;
+                    lh.innerHTML += `<li class="list-group-item d-flex justify-content-between"><div class="d-flex gap-3"><input class="form-check-input mt-0" type="checkbox" ${h.concluidoHoje ? 'checked' : ''} onchange="App.Controller.toggleHabit(${h.id})"><span>${h.texto}</span><small>🔥 ${h.streak}</small></div><i class="ph ph-trash opacity-50" onclick="App.Controller.delHabit(${h.id})"></i></li>`
                 });
             }
         },
+
         updateStats() {
             const m = App.Model.getMinHoje(),
                 nv = App.Model.getNivel();
             document.getElementById('display-minutos-foco').innerText = m;
             document.getElementById('badge-nivel').innerText = `${nv.i} ${nv.t}`;
             const b = document.getElementById('barra-dia-fundo');
-            if (b) b.style.width = `${Math.min((m/240)*100,100)}%`;
+            if (b) b.style.width = `${Math.min((m / 240) * 100, 100)}%`;
         },
         updateTimer(r, t) {
             const m = Math.floor(r / 60),
-                s = Math.floor(r % 60),
-                txt = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-            const el = document.getElementById('foco-timer');
-            if (el) el.innerText = txt;
-            document.title = `${txt} - Focando`;
-            const b = document.getElementById('barra-progresso');
-            if (b) b.style.width = `${100-((r/t)*100)}%`;
+                s = Math.floor(r % 60);
+            document.getElementById('foco-timer').innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            document.getElementById('barra-progresso').style.width = `${100 - ((r / t) * 100)}%`;
         },
+
         alternarSom(t) {
+            // Fix Audio Object
             if (this.currentSound === t) {
-                this.ambience[t].pause();
+                this.audio.pause();
                 this.currentSound = null;
             } else {
                 this.stopSound();
-                this.ambience[t].play().catch(() => {});
+                this.audio.src = this.ambience[t];
+                this.audio.loop = true;
+                this.audio.play().catch(e => console.log("Audio play error:", e));
                 this.currentSound = t;
             }
             this.updateSoundBtns();
         },
         stopSound() {
-            Object.values(this.ambience).forEach(a => {
-                a.pause();
-                a.currentTime = 0;
-            });
+            this.audio.pause();
             this.currentSound = null;
             this.updateSoundBtns();
         },
@@ -433,6 +457,7 @@ const App = {
                 }
             });
         },
+
         showReport() {
             document.getElementById('review-total-minutos').innerText = App.Model.getXP();
             document.getElementById('review-tarefas-feitas').innerText = (App.Model.usuario.historico || []).length;
@@ -451,6 +476,7 @@ const App = {
                     fb.className = "alert alert-warning border mt-2";
                 } else fb.innerHTML = "Continue registrando.";
             }
+            // Graficos
             const c1 = document.getElementById('graficoFoco');
             if (c1) {
                 if (this.charts.f) this.charts.f.destroy();
@@ -509,7 +535,7 @@ const App = {
     },
 
     // ============================================================
-    // 4. CONTROLLER
+    // 3. CONTROLLER
     // ============================================================
     Controller: {
         pendingId: null,
@@ -517,20 +543,28 @@ const App = {
         inboxProcessId: null,
 
         init() {
-            if (App.Model.carregar()) App.View.toDash();
-            else App.View.showStep(1);
+            if(App.Model.carregar()) {
+                App.View.toDash(); 
+            } else {
+                // Inicia no passo 1
+                App.Controller.atualizarOnboarding(1);
+            }
+
             document.getElementById('input-tarefa-texto').addEventListener('keypress', e => {
                 if (e.key === 'Enter') App.Controller.tentarAdicionarTarefa();
             });
             document.getElementById('input-habito').addEventListener('keypress', e => {
                 if (e.key === 'Enter') App.Controller.adicionarHabito();
             });
+
             document.addEventListener('keydown', e => {
-                if (e.key.toLowerCase() === 'n' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+                if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+                if (e.key.toLowerCase() === 'n') {
                     e.preventDefault();
-                    document.getElementById('input-tarefa-texto').focus();
+                    const el = document.getElementById('input-tarefa-texto');
+                    if (el) el.focus();
                 }
-                if (e.key.toLowerCase() === 'c' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+                if (e.key.toLowerCase() === 'c') {
                     e.preventDefault();
                     this.abrirBrainDump();
                 }
@@ -544,16 +578,53 @@ const App = {
             if ("Notification" in window && Notification.permission !== "granted") Notification.requestPermission();
         },
 
-        proximoPasso(n) {
-            const id = n === 2 ? 'input-name' : 'input-proposito';
-            App.Model.atualizarUsuario(n === 2 ? 'nome' : 'proposito', document.getElementById(id).value);
-            App.View.showStep(n);
-        },
-        finalizarOnboarding() {
-            App.Model.atualizarUsuario('papeis', document.getElementById('input-papeis').value.split(','));
-            App.View.toDash();
+
+        // Atualiza a barra e muda o slide
+        atualizarOnboarding(passo) {
+            // Esconde todos
+            document.querySelectorAll('.step-container').forEach(e => e.classList.add('d-none'));
+            // Mostra o atual
+            const atual = document.getElementById(`step-${passo}`);
+            if (atual) {
+                atual.classList.remove('d-none');
+                // Foco automático no input
+                const input = atual.querySelector('input, textarea');
+                if (input) setTimeout(() => input.focus(), 300);
+            }
+
+            // Atualiza barra de progresso
+            const prog = document.getElementById('onboarding-progress');
+            if (prog) prog.style.width = `${passo * 33.33}%`;
         },
 
+        proximoPasso(n) {
+            // Salva o dado do passo anterior
+            if (n === 2) {
+                const nome = document.getElementById('input-name').value.trim();
+                if (!nome) return App.View.notify("Por favor, diga seu nome.", "primary");
+                App.Model.atualizarUsuario('nome', nome);
+            }
+            if (n === 3) {
+                const prop = document.getElementById('input-proposito').value.trim();
+                if (!prop) return App.View.notify("Defina um objetivo.", "primary");
+                App.Model.atualizarUsuario('proposito', prop);
+            }
+
+            this.atualizarOnboarding(n);
+        },
+
+        voltarPasso(n) {
+            this.atualizarOnboarding(n);
+        },
+
+        finalizarOnboarding() {
+            const papeis = document.getElementById('input-papeis').value.split(',');
+            App.Model.atualizarUsuario('papeis', papeis);
+            App.View.toDash();
+            App.View.notify(`Bem-vindo, ${App.Model.usuario.nome}! 🚀`);
+        },
+
+        // --- Adicionar Tarefas e Gatekeeper ---
         tentarAdicionarTarefa() {
             const txt = document.getElementById('input-tarefa-texto').value.trim();
             if (!txt) return App.View.notify("Escreva algo!", "error");
@@ -594,30 +665,28 @@ const App = {
             App.View.render();
             document.getElementById('input-tarefa-texto').value = '';
         },
+        adicionarTarefa() {
+            this.tentarAdicionarTarefa();
+        },
 
-        // --- IA INTEGRATION VIA AI_MANAGER ---
+        // --- IA INTEGRATION ---
         async organizarComIA() {
-            const provider = App.Model.usuario.config.provider;
+            const provider = App.Model.usuario.config.provider || 'gemini';
             const apiKey = App.Model.usuario.config.apiKey;
-
             if (!apiKey) {
                 new bootstrap.Modal(document.getElementById('modalConfig')).show();
-                return App.View.notify("Cole sua API Key!", "primary");
+                return App.View.notify("Chave API necessária!", "error");
             }
             const inboxTasks = App.Model.usuario.tarefas.filter(t => t.isInbox);
-            if (inboxTasks.length === 0) return App.View.notify("Inbox vazia!", "primary");
+            if (inboxTasks.length === 0) return App.View.notify("Inbox vazia.", "primary");
 
             App.View.toggleLoading(true, `IA ${provider.toUpperCase()} trabalhando...`);
-
             try {
-                // Chama o arquivo separado AI.JS
-                const miniTasks = inboxTasks.map(t => ({
-                    id: t.id,
-                    texto: t.texto
-                }));
-                const classified = await AI_Manager.classificar(provider, apiKey, miniTasks);
+                // Passa IDs como String para evitar conflitos de tipo
+                const classified = await AI_Manager.classificar(provider, apiKey, inboxTasks);
 
                 classified.forEach(c => {
+                    // Atualiza a tarefa original (comparando ID como string)
                     App.Model.atualizarTarefa(c.id, {
                         importante: c.importante,
                         urgente: c.urgente,
@@ -627,30 +696,15 @@ const App = {
                 });
 
                 App.View.render();
-                App.View.notify(`✨ ${classified.length} tarefas organizadas!`, "success");
+                App.View.notify(`${classified.length} tarefas organizadas!`, "success");
             } catch (error) {
-                alert(`Erro na IA (${provider}):\n${error.message}\n\nVerifique sua chave.`);
+                alert(`Erro IA: ${error.message}`);
             } finally {
                 App.View.toggleLoading(false);
             }
         },
 
-        // --- UX HELPERS ---
-        atualizarLinkKey() {
-            const prov = document.getElementById('config-provider').value;
-            const link = document.getElementById('link-obter-key');
-            if (prov === 'gemini') {
-                link.href = "https://aistudio.google.com/app/apikey";
-                link.innerText = "Obter Chave Gemini ↗";
-            } else if (prov === 'openai') {
-                link.href = "https://platform.openai.com/api-keys";
-                link.innerText = "Obter Chave OpenAI ↗";
-            } else if (prov === 'groq') {
-                link.href = "https://console.groq.com/keys";
-                link.innerText = "Obter Chave Groq ↗";
-            }
-        },
-
+        // --- Inbox Manual ---
         abrirBrainDump() {
             new bootstrap.Modal(document.getElementById('modalBrainDump')).show();
             setTimeout(() => document.getElementById('input-brain-dump').focus(), 500);
@@ -679,6 +733,7 @@ const App = {
             App.View.notify("Organizado!", "success");
         },
 
+        // --- Ações ---
         delTask(id) {
             if (confirm("Excluir?")) {
                 App.Model.delTarefa(id);
@@ -704,6 +759,7 @@ const App = {
             }
         },
 
+        // --- Foco ---
         startFocus(id) {
             this.pendingId = id;
             new bootstrap.Modal(document.getElementById('modalEnergia')).show();
@@ -766,17 +822,30 @@ const App = {
             App.View.toDash();
         },
 
+        // --- Configs ---
         alternarTema() {
             const n = App.Model.usuario.config.tema === 'light' ? 'dark' : 'light';
             App.Model.usuario.config.tema = n;
             App.Model.salvar();
             App.View.applyTheme();
         },
-
+        atualizarLinkKey() {
+            const p = document.getElementById('config-provider').value;
+            const l = document.getElementById('link-obter-key');
+            if (p === 'groq') {
+                l.href = "https://console.groq.com/keys";
+                l.innerText = "Chave Groq ↗";
+            } else if (p === 'openai') {
+                l.href = "https://platform.openai.com/api-keys";
+                l.innerText = "Chave OpenAI ↗";
+            } else {
+                l.href = "https://aistudio.google.com/app/apikey";
+                l.innerText = "Chave Gemini ↗";
+            }
+        },
         salvarConfiguracoes(fechar = false) {
             App.Model.usuario.config.tempoFocoMinutos = parseInt(document.getElementById('config-tempo').value);
             App.Model.usuario.config.provider = document.getElementById('config-provider').value;
-
             const key = document.getElementById('config-apikey').value.trim();
             if (key) App.Model.usuario.config.apiKey = key;
 
@@ -784,9 +853,7 @@ const App = {
             App.View.notify("Salvo!");
             if (fechar) {
                 bootstrap.Modal.getInstance(document.getElementById('modalConfig')).hide();
-                if (App.Model.usuario.tarefas.filter(t => t.isInbox).length > 0 && key) {
-                    setTimeout(() => App.Controller.organizarComIA(), 500);
-                }
+                if (App.Model.usuario.tarefas.filter(t => t.isInbox).length > 0 && key) setTimeout(() => App.Controller.organizarComIA(), 500);
             }
         },
         baixarBackup() {
@@ -816,6 +883,7 @@ const App = {
         abrirRelatorio() {
             App.View.showReport();
         },
+
         iniciarShutdown() {
             const m = App.Model.calcularMinutosHoje(),
                 t = (App.Model.usuario.historico || []).length,

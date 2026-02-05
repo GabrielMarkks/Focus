@@ -63,34 +63,85 @@
     <div class="container mt-4 mb-5 pb-5">
 
         <section id="view-onboarding" class="row justify-content-center min-vh-100 align-items-center">
-            <div class="col-md-8 col-lg-5">
-                <div class="card border-0 shadow-lg p-4 p-md-5 text-center rounded-5">
-                    <div class="mb-4">
-                        <div class="bg-primary bg-opacity-10 d-inline-block p-4 rounded-circle"><i
-                                class="ph ph-rocket-launch fs-1 text-primary"></i></div>
+            <div class="col-md-6 col-lg-5">
+
+                <div class="card onboarding-card p-0">
+
+                    <div class="progress" style="height: 6px; border-radius: 0;">
+                        <div id="onboarding-progress" class="progress-bar bg-primary transition-width"
+                            style="width: 33%"></div>
                     </div>
-                    <div id="step-1" class="step-container">
-                        <h2 class="h3 fw-bold mb-2">Bem-vindo.</h2>
-                        <input type="text" id="input-name" class="form-control form-control-lg mb-3 text-center"
-                            placeholder="Seu Nome">
-                        <button onclick="App.Controller.proximoPasso(2)"
-                            class="btn btn-dark w-100 py-3 rounded-pill fw-bold">Próximo</button>
-                    </div>
-                    <div id="step-2" class="step-container d-none">
-                        <h2 class="h3 fw-bold mb-2">Foco Principal</h2>
-                        <textarea id="input-proposito" class="form-control mb-3" rows="3"
-                            placeholder="Seu objetivo nº 1"></textarea>
-                        <button onclick="App.Controller.proximoPasso(3)"
-                            class="btn btn-dark w-100 py-3 rounded-pill fw-bold">Definir</button>
-                    </div>
-                    <div id="step-3" class="step-container d-none">
-                        <h2 class="h3 fw-bold mb-2">Identidade</h2>
-                        <input type="text" id="input-papeis" class="form-control form-control-lg mb-3"
-                            placeholder="Ex: Gestor, Criativo">
-                        <button onclick="App.Controller.finalizarOnboarding()"
-                            class="btn btn-primary w-100 py-3 rounded-pill fw-bold">Iniciar 🚀</button>
+
+                    <div class="card-body p-5 text-center">
+
+                        <div id="step-1" class="step-container animate-fade-in">
+                            <div class="mb-4">
+                                <div class="bg-primary bg-opacity-10 d-inline-flex p-4 rounded-circle icon-pulse">
+                                    <i class="ph ph-hand-waving fs-1 text-primary"></i>
+                                </div>
+                            </div>
+                            <h2 class="h3 fw-bold mb-2">Bem-vindo ao Foco.</h2>
+                            <p class="text-muted mb-4">Vamos personalizar seu workspace. Como devemos te chamar?</p>
+
+                            <div class="mb-4">
+                                <input type="text" id="input-name" class="form-control input-onboarding"
+                                    placeholder="Seu Nome" autocomplete="off">
+                            </div>
+
+                            <button onclick="App.Controller.proximoPasso(2)"
+                                class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm">
+                                Continuar <i class="ph ph-arrow-right ms-2"></i>
+                            </button>
+                        </div>
+
+                        <div id="step-2" class="step-container d-none animate-fade-in">
+                            <div class="mb-4">
+                                <div class="bg-warning bg-opacity-10 d-inline-flex p-4 rounded-circle">
+                                    <i class="ph ph-target fs-1 text-warning"></i>
+                                </div>
+                            </div>
+                            <h2 class="h3 fw-bold mb-2">Seu Foco Principal</h2>
+                            <p class="text-muted mb-4">Qual é o seu objetivo número 1 para hoje?</p>
+
+                            <div class="mb-4">
+                                <textarea id="input-proposito" class="form-control input-onboarding" rows="1"
+                                    placeholder="Ex: Finalizar o projeto X..." style="resize: none;"></textarea>
+                            </div>
+
+                            <button onclick="App.Controller.proximoPasso(3)"
+                                class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm">
+                                Definir Foco <i class="ph ph-check ms-2"></i>
+                            </button>
+                            <button onclick="App.Controller.voltarPasso(1)"
+                                class="btn btn-link text-muted mt-2 text-decoration-none small">Voltar</button>
+                        </div>
+
+                        <div id="step-3" class="step-container d-none animate-fade-in">
+                            <div class="mb-4">
+                                <div class="bg-success bg-opacity-10 d-inline-flex p-4 rounded-circle">
+                                    <i class="ph ph-user-focus fs-1 text-success"></i>
+                                </div>
+                            </div>
+                            <h2 class="h3 fw-bold mb-2">Sua Identidade</h2>
+                            <p class="text-muted mb-4">Quem você precisa ser hoje? (Papéis)</p>
+
+                            <div class="mb-4">
+                                <input type="text" id="input-papeis" class="form-control input-onboarding"
+                                    placeholder="Ex: Gestor, Criativo, Pai">
+                            </div>
+
+                            <button onclick="App.Controller.finalizarOnboarding()"
+                                class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow-lg hover-scale">
+                                Iniciar Sistema 🚀
+                            </button>
+                            <button onclick="App.Controller.voltarPasso(2)"
+                                class="btn btn-link text-muted mt-2 text-decoration-none small">Voltar</button>
+                        </div>
+
                     </div>
                 </div>
+
+                <p class="text-center text-muted mt-4 small opacity-50">Focus Coach Pro © 2025</p>
             </div>
         </section>
 
