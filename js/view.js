@@ -246,17 +246,40 @@ export const View = {
         const lh = document.getElementById('lista-habitos');
         if (lh) {
             lh.innerHTML = '';
+            const hojeDia = new Date().getDay(); // 0-6
+
             (usuario.habitos || []).forEach(h => {
+                // Verifica se hoje é dia de fazer
+                const ehDia = h.dias ? h.dias.includes(hojeDia) : true; // Retrocompatibilidade
+
+                // Estilo visual: Opaco se não for dia, Normal se for
+                const opacity = ehDia ? '1' : '0.5';
+                const icon = ehDia ? (h.concluidoHoje ? '🔥' : '⬜') : '💤'; // Zzz para descanso
+                const title = ehDia ? 'Hoje é dia!' : 'Descanso hoje';
+
                 lh.innerHTML += `
-                <li class="list-group-item d-flex justify-content-between">
-                    <div class="d-flex gap-3">
-                        <input class="form-check-input mt-0" type="checkbox" ${h.concluidoHoje ? 'checked' : ''} onchange="App.Controller.toggleHabit(${h.id})">
-                        <span>${h.texto}</span>
-                        <small>🔥 ${h.streak}</small>
+                <li class="list-group-item d-flex justify-content-between align-items-center" style="opacity: ${opacity}">
+                    <div class="d-flex gap-3 align-items-center">
+                        <input class="form-check-input mt-0" type="checkbox" 
+                            ${h.concluidoHoje ? 'checked' : ''} 
+                            ${!ehDia ? 'disabled' : ''}
+                            onchange="App.Controller.toggleHabit(${h.id})"
+                            style="cursor: pointer;">
+                        
+                        <div class="d-flex flex-column" style="line-height: 1.2;">
+                            <span class="${h.concluidoHoje ? 'text-decoration-line-through text-muted' : ''}">${h.texto}</span>
+                            <small class="text-muted" style="font-size: 0.7rem;">
+                                ${icon} Streak: ${h.streak} dias
+                            </small>
+                        </div>
                     </div>
-                    <i class="ph ph-trash opacity-50" onclick="App.Controller.delHabit(${h.id})"></i>
+                    <i class="ph ph-trash opacity-25 hover-danger" style="cursor: pointer;" onclick="App.Controller.delHabit(${h.id})"></i>
                 </li>`;
             });
+
+            if (usuario.habitos.length === 0) {
+                lh.innerHTML = '<div class="text-center text-muted small py-3">Nenhum hábito ativo.</div>';
+            }
         }
     },
 

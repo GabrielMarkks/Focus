@@ -219,6 +219,49 @@ export const Controller = {
         }
     },
 
+    // --- ANALYTICS COM IA (NOVO) ---
+    async gerarAnaliseIA() {
+        // 1. Prepara UI
+        const btn = document.getElementById('btn-analise-ia');
+        const box = document.getElementById('box-feedback-ai');
+        const txt = document.getElementById('texto-feedback-ai');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Pensando...';
+        box.classList.add('d-none'); // Esconde resultado anterior
+
+        // 2. Coleta Dados Frescos
+        const dados = {
+            xp: Model.getXP(),
+            totalTarefas: (Model.usuario.historico || []).length,
+            graficos: Model.getDadosGraf()
+        };
+
+        const provider = Model.usuario.config.provider;
+        const apiKey = Model.usuario.config.apiKey;
+
+        if (!apiKey) {
+            btn.disabled = false;
+            btn.innerText = "🔮 Analisar Performance";
+            return View.notify("Configure sua API Key primeiro!", "error");
+        }
+
+        try {
+            // 3. Chama IA
+            const analise = await AI_Manager.analisarPerformance(provider, apiKey, dados);
+
+            // 4. Exibe Resultado
+            box.classList.remove('d-none');
+            txt.innerHTML = View.formatarTextoIA(analise); // Reutiliza o formatador do chat
+
+        } catch (error) {
+            View.notify("Erro na análise: " + error.message, "error");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "🔮 Analisar Novamente";
+        }
+    },
+
     // --- Chat ---
     abrirChat() {
         View.toggleModal('modalChat', 'show');
@@ -340,6 +383,36 @@ export const Controller = {
             Model.delHabito(id);
             View.renderHabits(Model.usuario);
         }
+    },
+
+    // --- HÁBITOS 2.0 ---
+    abrirModalHabito() {
+        document.getElementById('input-habito-nome').value = '';
+        // Reseta dias (deixa Seg-Sex marcado por padrão)
+        [1, 2, 3, 4, 5].forEach(d => document.getElementById(`dia-${d}`).checked = true);
+        document.getElementById('dia-0').checked = false; // Dom
+        document.getElementById('dia-6').checked = false; // Sab
+
+        View.toggleModal('modalHabito', 'show');
+        setTimeout(() => document.getElementById('input-habito-nome').focus(), 500);
+    },
+
+    salvarNovoHabito() {
+        const nome = document.getElementById('input-habito-nome').value.trim();
+        if (!nome) return View.notify("Dê um nome ao hábito!", "error");
+
+        // Coleta dias selecionados
+        const diasSelecionados = [];
+        for (let i = 0; i <= 6; i++) {
+            if (document.getElementById(`dia-${i}`).checked) diasSelecionados.push(i);
+        }
+
+        if (diasSelecionados.length === 0) return View.notify("Selecione pelo menos um dia.", "warning");
+
+        Model.addHabito(nome, diasSelecionados);
+        View.render(Model.usuario); // Atualiza UI
+        View.toggleModal('modalHabito', 'hide');
+        View.notify("Hábito criado! Vamos manter a chama acesa 🔥", "success");
     },
 
     // --- Foco ---

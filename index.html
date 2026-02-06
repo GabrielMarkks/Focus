@@ -511,23 +511,54 @@
                             class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body p-4">
-                        <div class="row text-center mb-4 g-3">
+                        <div class="row text-center mb-4 g-2">
                             <div class="col-4">
-                                <h2 id="review-total-minutos" class="fw-bold text-primary m-0">0</h2><small>Min</small>
+                                <div class="p-3 bg-body-tertiary rounded-4">
+                                    <h3 class="fw-bold text-primary mb-0" id="review-total-minutos">0</h3>
+                                    <small class="text-muted text-uppercase fw-bold" style="font-size: 0.65rem;">Minutos
+                                        XP</small>
+                                </div>
                             </div>
                             <div class="col-4">
-                                <h2 id="review-tarefas-feitas" class="fw-bold text-success m-0">0</h2>
-                                <small>Feitas</small>
+                                <div class="p-3 bg-body-tertiary rounded-4">
+                                    <h3 class="fw-bold text-success mb-0" id="review-tarefas-feitas">0</h3>
+                                    <small class="text-muted text-uppercase fw-bold"
+                                        style="font-size: 0.65rem;">Tarefas</small>
+                                </div>
                             </div>
                             <div class="col-4">
-                                <h2 id="review-streak" class="fw-bold text-warning m-0">0</h2><small>Streak</small>
+                                <div class="p-3 bg-body-tertiary rounded-4">
+                                    <h3 class="fw-bold text-warning mb-0" id="review-streak">0</h3>
+                                    <small class="text-muted text-uppercase fw-bold"
+                                        style="font-size: 0.65rem;">Streak</small>
+                                </div>
                             </div>
                         </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-4"><canvas id="graficoFoco"></canvas></div>
-                            <div class="col-md-6 mb-4"><canvas id="graficoQualidade"></canvas></div>
+
+                        <div id="review-feedback" class="mb-3 text-center small text-muted"></div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-6"><canvas id="graficoFoco"></canvas></div>
+                            <div class="col-6"><canvas id="graficoQualidade"></canvas></div>
                         </div>
-                        <div class="alert alert-light border mt-2" id="review-feedback">...</div>
+
+                        <div id="box-feedback-ai"
+                            class="bg-primary bg-opacity-10 p-3 rounded-3 border border-primary border-opacity-25 d-none">
+                            <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-bold">
+                                <i class="ph ph-sparkle-fill"></i> Análise do Coach
+                            </div>
+                            <p id="texto-feedback-ai" class="mb-0 small text-body" style="line-height: 1.6;">
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer border-0 p-3 pt-0 justify-content-center">
+                        <button type="button" class="btn btn-outline-primary rounded-pill px-4"
+                            onclick="App.Controller.gerarAnaliseIA()" id="btn-analise-ia">
+                            🔮 Analisar Performance
+                        </button>
+                        <button type="button" class="btn btn-dark rounded-pill px-4"
+                            data-bs-dismiss="modal">Fechar</button>
                     </div>
                 </div>
             </div>
@@ -639,15 +670,87 @@
 
     <div class="offcanvas offcanvas-end rounded-start-4 border-0" tabindex="-1" id="offcanvasHabitos">
         <div class="offcanvas-header">
-            <h5 class="offcanvas-title fw-bold">Rituais</h5><button type="button" class="btn-close"
-                data-bs-dismiss="offcanvas"></button>
+            <h5 class="offcanvas-title fw-bold">
+                <i class="ph ph-arrows-clockwise me-2 text-success"></i>Rituais
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
         </div>
-        <div class="offcanvas-body d-flex flex-column">
-            <ul id="lista-habitos" class="list-group list-group-flush mb-4 flex-grow-1"></ul>
-            <div class="mt-auto">
-                <div class="input-group"><input type="text" id="input-habito" class="form-control"
-                        placeholder="Novo hábito..."><button class="btn btn-dark"
-                        onclick="App.Controller.adicionarHabito()"><i class="ph ph-plus"></i></button></div>
+
+        <div class="offcanvas-body p-4">
+
+            <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-success bg-opacity-10 rounded-3">
+                <div>
+                    <h6 class="fw-bold mb-0 text-success">Novo Hábito</h6>
+                    <small class="text-muted" style="font-size: 0.75rem;">Construa sua disciplina</small>
+                </div>
+                <button class="btn btn-success rounded-circle shadow-sm hover-scale"
+                    onclick="App.Controller.abrirModalHabito()" style="width: 40px; height: 40px;">
+                    <i class="ph ph-plus text-white"></i>
+                </button>
+            </div>
+
+            <h6 class="text-muted small fw-bold text-uppercase mb-3">Seus Streaks</h6>
+            <ul id="lista-habitos" class="list-group list-group-flush gap-2">
+            </ul>
+
+            <div id="empty-habitos" class="text-center text-muted mt-5 d-none">
+                <i class="ph ph-plant fs-1 opacity-25 mb-2"></i>
+                <p class="small">Nenhum ritual definido ainda.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalHabito" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-success">
+                        <i class="ph ph-barbell me-2"></i>Novo Hábito
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label small fw-bold text-uppercase text-muted">O que você quer construir?</label>
+                    <input type="text" id="input-habito-nome" class="form-control bg-body-tertiary border-0 mb-3"
+                        placeholder="Ex: Ler 10 páginas...">
+
+                    <label class="form-label small fw-bold text-uppercase text-muted">Frequência (Dias)</label>
+                    <div class="d-flex justify-content-between gap-1" id="selecao-dias-habito">
+                        <input type="checkbox" class="btn-check" id="dia-0" value="0" autocomplete="off">
+                        <label class="btn btn-outline-success rounded-circle btn-sm" for="dia-0"
+                            style="width: 35px; height: 35px;">D</label>
+
+                        <input type="checkbox" class="btn-check" id="dia-1" value="1" autocomplete="off" checked>
+                        <label class="btn btn-outline-success rounded-circle btn-sm" for="dia-1"
+                            style="width: 35px; height: 35px;">S</label>
+
+                        <input type="checkbox" class="btn-check" id="dia-2" value="2" autocomplete="off" checked>
+                        <label class="btn btn-outline-success rounded-circle btn-sm" for="dia-2"
+                            style="width: 35px; height: 35px;">T</label>
+
+                        <input type="checkbox" class="btn-check" id="dia-3" value="3" autocomplete="off" checked>
+                        <label class="btn btn-outline-success rounded-circle btn-sm" for="dia-3"
+                            style="width: 35px; height: 35px;">Q</label>
+
+                        <input type="checkbox" class="btn-check" id="dia-4" value="4" autocomplete="off" checked>
+                        <label class="btn btn-outline-success rounded-circle btn-sm" for="dia-4"
+                            style="width: 35px; height: 35px;">Q</label>
+
+                        <input type="checkbox" class="btn-check" id="dia-5" value="5" autocomplete="off" checked>
+                        <label class="btn btn-outline-success rounded-circle btn-sm" for="dia-5"
+                            style="width: 35px; height: 35px;">S</label>
+
+                        <input type="checkbox" class="btn-check" id="dia-6" value="6" autocomplete="off">
+                        <label class="btn btn-outline-success rounded-circle btn-sm" for="dia-6"
+                            style="width: 35px; height: 35px;">S</label>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-success rounded-pill px-4 w-100 fw-bold"
+                        onclick="App.Controller.salvarNovoHabito()">
+                        Criar Hábito 🔥
+                    </button>
+                </div>
             </div>
         </div>
     </div>

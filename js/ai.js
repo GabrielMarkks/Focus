@@ -58,6 +58,39 @@ export const AI_Manager = {
         if (provider === 'groq') return await this.callGroq(cleanKey, { prompt }, 'chat');
     },
 
+    async analisarPerformance(provider, apiKey, dados) {
+        const cleanKey = apiKey ? apiKey.trim() : "";
+        if (!cleanKey) throw new Error("API Key não informada.");
+
+        // Transforma os dados brutos em texto legível para a IA
+        const resumo = `
+            XP Total (Minutos): ${dados.xp}
+            Tarefas Feitas: ${dados.totalTarefas}
+            Foco em Urgências (Q1): ${dados.graficos.q1} min
+            Foco em Metas (Q2): ${dados.graficos.q2} min
+            Foco em Delegação (Q3): ${dados.graficos.q3} min
+            Desperdício (Q4): ${dados.graficos.q4} min
+        `;
+
+        const prompt = `
+            Você é um Analista de Alta Performance.
+            Analise os dados da semana deste usuário:
+            ${resumo}
+
+            Dê um feedback de 2 frases.
+            1. Um elogio sobre o ponto forte.
+            2. Uma correção tática sobre o ponto fraco (onde ele gastou muito tempo errado ou se trabalhou pouco).
+            Seja direto e use emojis. Não use "Olá". Vá direto ao ponto.
+        `;
+
+        console.log(`📊 Analisando via: ${provider}`);
+
+        // Reutiliza a infraestrutura existente
+        if (provider === 'gemini') return await this.callGemini(cleanKey, { prompt }, 'chat');
+        if (provider === 'openai') return await this.callOpenAI(cleanKey, { prompt }, 'chat');
+        if (provider === 'groq') return await this.callGroq(cleanKey, { prompt }, 'chat');
+    },
+
     // --- ADAPTERS ---
     async callGemini(apiKey, data, mode) {
         const model = "gemini-1.5-flash";

@@ -2,6 +2,7 @@ export const Model = {
     usuario: {
         nome: "",
         proposito: "",
+        metaSemanal: "",
         papeis: [],
         tarefas: [],
         historico: [],
@@ -175,17 +176,55 @@ export const Model = {
     },
 
     // HABITOS
-    addHabito(t) {
+    addHabito(texto, dias = [0, 1, 2, 3, 4, 5, 6]) {
         if (!Array.isArray(this.usuario.habitos)) this.usuario.habitos = [];
         this.usuario.habitos.push({
             id: Date.now(),
-            texto: t,
+            texto: texto,
+            dias: dias, // Array de dias (0=Dom, 1=Seg...)
             streak: 0,
             ultimaData: null,
             concluidoHoje: false
         });
         this.salvar();
     },
+
+    // LÓGICA DE STREAK INTELIGENTE
+    checkDia() {
+        const hoje = new Date();
+        const hojeStr = hoje.toDateString();
+
+        // Data de ontem para verificar quebra de streak
+        const ontem = new Date();
+        ontem.setDate(ontem.getDate() - 1);
+        const ontemStr = ontem.toDateString();
+        const diaSemanaOntem = ontem.getDay();
+
+        let mudou = false;
+
+        if (Array.isArray(this.usuario.habitos)) {
+            this.usuario.habitos.forEach(h => {
+                // 1. Reseta o status visual "concluidoHoje" se mudou o dia
+                if (h.ultimaData !== hojeStr) {
+                    h.concluidoHoje = false;
+                    mudou = true;
+                }
+
+                // 2. Verifica se Quebrou o Streak
+                // Se a última vez que fez NÃO foi ontem...
+                if (h.ultimaData !== ontemStr && h.ultimaData !== hojeStr) {
+                    // ...E se ontem ele DEVERIA ter feito (estava nos dias programados)
+                    if (h.dias && h.dias.includes(diaSemanaOntem)) {
+                        h.streak = 0; // Quebrou! 😢
+                        mudou = true;
+                    }
+                    // Se ontem era dia de folga (não estava no array), o streak é mantido! 🛡️
+                }
+            });
+        }
+        if (mudou) this.salvar();
+    },
+
     toggleHabito(id) {
         const h = (this.usuario.habitos || []).find(x => x.id == id);
         if (h) {
