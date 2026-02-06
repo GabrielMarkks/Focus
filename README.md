@@ -56,12 +56,8 @@ Timer focado em ciclos ultradianos:
 
 Nesta versão 2.0, o projeto foi refatorado para **ES6 Modules**, garantindo escalabilidade e manutenção limpa:
 
-/js ├── main.js 
-# Entry Point (Inicialização e Bridge) ├── model.js 
-# Gestão de Dados, LocalStorage e Regras de Negócio ├── view.js 
-# Manipulação do DOM, Gráficos e UI ├── controller.js 
-# Lógica de Controle e Event Listeners └── ai.js 
-# Service Layer (Conexão com APIs Gemini/Groq/OpenAI)
+/js ├── main.js # Entry Point (Inicialização e Bridge) ├── model.js # Gestão de Dados, LocalStorage e Regras de Negócio ├── view.js # Manipulação do DOM, Gráficos e UI ├── controller.js # Lógica de Controle e Event Listeners └── ai.js # Service Layer (Conexão com APIs Gemini/Groq/OpenAI)
+
 
 * **Design Pattern:** Model-View-Controller (MVC).
 * **Persistência:** LocalStorage (Client-side first).
@@ -86,4 +82,31 @@ No terminal, na pasta do projeto:
 ```bash
 python -m http.server 8000
 # Acesse localhost:8000 no navegador
+🔑 Configuração da IA
+O app é "Bring Your Own Key" (BYOK). Seus dados e sua chave ficam salvos apenas no seu navegador.
 
+Clique na Engrenagem (⚙️).
+
+Escolha o provedor:
+
+Google Gemini (Recomendado - Modelo Flash 1.5).
+
+Groq (Llama 3.3 - Ultra Rápido).
+
+OpenAI (GPT-4o mini).
+
+Cole a chave e salve.
+
+🤝 Contribuição & Roadmap
+O projeto está pronto para uso ("Gold Master"), mas o céu é o limite. Próximos passos (Fase 3):
+
+[ ] Banco de dados na nuvem (Firebase).
+
+[ ] Login de usuário.
+
+[ ] PWA (Instalação no celular).
+
+📄 Licença
+Distribuído sob a licença MIT. Feito para ajudar pessoas a focarem no que importa.
+
+<p align="center"> <b>Construído com 💙, JavaScript Moderno e IA.</b> </p>
