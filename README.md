@@ -55,3 +55,35 @@ Timer focado em ciclos ultradianos:
 ## 🛠️ Arquitetura Técnica (MVC)
 
 Nesta versão 2.0, o projeto foi refatorado para **ES6 Modules**, garantindo escalabilidade e manutenção limpa:
+
+/js ├── main.js 
+# Entry Point (Inicialização e Bridge) ├── model.js 
+# Gestão de Dados, LocalStorage e Regras de Negócio ├── view.js 
+# Manipulação do DOM, Gráficos e UI ├── controller.js 
+# Lógica de Controle e Event Listeners └── ai.js 
+# Service Layer (Conexão com APIs Gemini/Groq/OpenAI)
+
+* **Design Pattern:** Model-View-Controller (MVC).
+* **Persistência:** LocalStorage (Client-side first).
+* **API Layer:** Fetch API assíncrona com tratamento de erros robusto.
+
+---
+
+## 🚀 Como Rodar (Importante!)
+
+Como o projeto agora usa **Módulos ES6** (`import`/`export`), você **não pode** apenas abrir o arquivo `index.html` clicando duas vezes (devido à política CORS dos navegadores para módulos locais).
+
+### Pré-requisito
+Você precisa de um servidor local simples.
+
+#### Opção A: VS Code (Recomendado)
+1.  Instale a extensão **Live Server**.
+2.  Clique com o botão direito no `index.html`.
+3.  Escolha **"Open with Live Server"**.
+
+#### Opção B: Python
+No terminal, na pasta do projeto:
+```bash
+python -m http.server 8000
+# Acesse localhost:8000 no navegador
+
