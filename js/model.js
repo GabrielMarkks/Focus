@@ -98,18 +98,24 @@ export const Model = {
     },
 
     // CRUD TAREFAS
-    addTarefa(texto, imp, urg, tipo = 'manutencao', inbox = false) {
+    addTarefa(texto, urgente, importante, tipo, isInbox = false) {
         if (!Array.isArray(this.usuario.tarefas)) this.usuario.tarefas = [];
-        this.usuario.tarefas.push({
-            id: Date.now() + Math.random(),
-            texto,
-            importante: imp,
-            urgente: urg,
-            tipo,
-            isInbox: inbox,
-            feita: false
-        });
+
+        const novaTarefa = {
+            id: Date.now(),
+            texto: texto,
+            urgente: urgente,
+            importante: importante,
+            tipo: tipo,
+            feita: false,
+            isInbox: isInbox,
+            tempoInvestido: 0,
+            criadaEm: Date.now() // <--- NOVO: Carimbo de data
+        };
+
+        this.usuario.tarefas.push(novaTarefa);
         this.salvar();
+        return novaTarefa;
     },
     atualizarTarefa(id, dados) {
         const t = this.usuario.tarefas.find(task => String(task.id) === String(id));

@@ -91,6 +91,28 @@ export const AI_Manager = {
         if (provider === 'groq') return await this.callGroq(cleanKey, { prompt }, 'chat');
     },
 
+    async negociarZumbis(provider, apiKey, tarefasZumbis) {
+        const lista = tarefasZumbis.map(t => `- "${t.texto}" (Criada há ${t.dias} dias)`).join('\n');
+
+        const prompt = `
+            CONTEXTO: O usuário está procrastinando estas tarefas há muito tempo (Tarefas Zumbis):
+            ${lista}
+            
+            SUA MISSÃO: Seja um coach "Durão mas Justo". 
+            Para cada tarefa, sugira uma ação rápida:
+            1. DELETAR (se não for essencial).
+            2. FAZER AGORA (se levar < 2 min).
+            3. QUEBRAR (se for muito grande).
+            
+            Seja curto. Não dê sermão. Foco em limpar a lista.
+            Termine perguntando: "Qual delas vamos eliminar agora?"
+        `;
+
+        if (provider === 'gemini') return await this.callGemini(apiKey, { prompt }, 'chat');
+        if (provider === 'openai') return await this.callOpenAI(apiKey, { prompt }, 'chat');
+        if (provider === 'groq') return await this.callGroq(apiKey, { prompt }, 'chat');
+    },
+
     // --- ADAPTERS ---
     async callGemini(apiKey, data, mode) {
         const model = "gemini-1.5-flash";

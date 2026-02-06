@@ -13,15 +13,78 @@ export const Controller = {
     pendingTask: null,
     inboxProcessId: null,
 
+    // ... dentro de Controller ...
+
     init() {
-        // Tenta carregar dados. Se falhar ou for vazio, inicia onboarding.
         if (Model.carregar()) {
             this.refreshDash();
+            setTimeout(() => this.verificarZumbis(), 2000); // <--- NOVO: Verifica após 2s
         } else {
             View.atualizarOnboarding(1);
         }
         this.setupListeners();
     },
+
+    // --- CAÇADOR DE ZUMBIS 🧟‍♂️ ---
+    verificarZumbis() {
+        const hoje = Date.now();
+        const LIMITE_DIAS = 3; // Critério para virar zumbi
+        const msPorDia = 24 * 60 * 60 * 1000;
+
+        const zumbis = Model.usuario.tarefas.filter(t => {
+            if (t.feita || !t.criadaEm) return false; // Ignora feitas ou sem data
+            const idade = (hoje - t.criadaEm) / msPorDia;
+            return idade >= LIMITE_DIAS;
+        });
+
+        if (zumbis.length > 0) {
+            // Mostra um Toast Especial (Notificação)
+            const html = `
+                <div class="toast show align-items-center text-bg-dark border-0 shadow-lg" role="alert" style="position: fixed; bottom: 20px; right: 20px; z-index: 10000;">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            🧟‍♂️ <b>Alerta:</b> ${zumbis.length} Tarefas Zumbis detectadas!
+                            <div class="mt-2 pt-2 border-top border-secondary">
+                                <button type="button" class="btn btn-sm btn-danger rounded-pill px-3" onclick="App.Controller.resolverZumbis()">
+                                    Eliminar Zumbis
+                                </button>
+                                <button type="button" class="btn btn-sm btn-link text-white text-decoration-none ms-2" data-bs-dismiss="toast">Ignorar</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>`;
+
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+    },
+
+    async resolverZumbis() {
+        // 1. Coleta os dados de novo
+        const hoje = Date.now();
+        const msPorDia = 24 * 60 * 60 * 1000;
+        const zumbis = Model.usuario.tarefas
+            .filter(t => !t.feita && t.criadaEm && ((hoje - t.criadaEm) / msPorDia >= 3))
+            .map(t => ({ texto: t.texto, dias: Math.floor((hoje - t.criadaEm) / msPorDia) }));
+
+        // 2. Abre o Chat
+        this.abrirChat();
+        View.appendChatBubble("🚨 Detectei tarefas estagnadas. Analisando...", "ai");
+
+        // 3. Chama a IA
+        const provider = Model.usuario.config.provider;
+        const apiKey = Model.usuario.config.apiKey;
+
+        if (!apiKey) return View.appendChatBubble("Configure sua API Key para eu te ajudar a limpar isso.", "ai");
+
+        try {
+            const resposta = await AI_Manager.negociarZumbis(provider, apiKey, zumbis);
+            this.processarComandosIA(resposta, View.appendChatBubble('...', 'ai')); // Reutiliza lógica de chat
+        } catch (e) {
+            View.notify("Erro na IA Zumbi", "error");
+        }
+    },
+
 
     refreshDash() {
         View.toDash(Model.usuario, Model.obterFraseAleatoria());
