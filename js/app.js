@@ -1,6 +1,6 @@
 const App = {
     // ============================================================
-    // 1. MODEL (Dados & Persistência)
+    // 1. MODEL
     // ============================================================
     Model: {
         usuario: {
@@ -17,6 +17,13 @@ const App = {
                 provider: 'gemini'
             }
         },
+
+        // --- NOVO: Memória do Chat ---
+        chatMemory: {
+            history: [], // [{role: 'user'|'ai', content: '...'}]
+            lastActive: 0 // Timestamp
+        },
+
         timer: {
             ativo: false,
             tempoTotal: 0,
@@ -27,16 +34,17 @@ const App = {
         },
         citacoes: ["Menos, porém melhor.", "O foco é a nova moeda.", "1% melhor todo dia.", "Feito é melhor que perfeito.", "Sua atenção é seu maior ativo."],
 
-        // --- Persistência ---
         salvar() {
             try {
                 localStorage.setItem('focusApp_user', JSON.stringify(this.usuario));
+                localStorage.setItem('focusApp_chat', JSON.stringify(this.chatMemory));
             } catch (e) {
                 console.error(e)
             }
         },
 
         carregar() {
+            // Carrega Dados
             const d = localStorage.getItem('focusApp_user');
             if (d) {
                 try {
@@ -45,21 +53,47 @@ const App = {
                         ...this.usuario,
                         ...p
                     };
-                    // Blindagem de Arrays
                     ['tarefas', 'historico', 'habitos'].forEach(k => {
                         if (!Array.isArray(this.usuario[k])) this.usuario[k] = [];
                     });
-                    // Blindagem de Config
                     if (!this.usuario.config) this.usuario.config = {};
                     if (!this.usuario.config.provider) this.usuario.config.provider = 'gemini';
-
-                    this.checkDia();
-                    return true;
-                } catch (e) {
-                    return false;
-                }
+                } catch (e) {}
             }
-            return false;
+
+            // Carrega e Valida Chat (30 min de validade)
+            const c = localStorage.getItem('focusApp_chat');
+            if (c) {
+                try {
+                    const chatData = JSON.parse(c);
+                    const now = Date.now();
+                    // 30 min = 1800000ms
+                    if (now - chatData.lastActive < 1800000) {
+                        this.chatMemory = chatData;
+                    } else {
+                        // Expirou? Limpa.
+                        this.chatMemory = {
+                            history: [],
+                            lastActive: now
+                        };
+                    }
+                } catch (e) {}
+            }
+
+            this.checkDia();
+            return !!d;
+        },
+
+        // Gerencia histórico
+        pushChatMessage(role, content) {
+            this.chatMemory.history.push({
+                role,
+                content
+            });
+            // Mantém só as últimas 10 para economizar tokens
+            if (this.chatMemory.history.length > 10) this.chatMemory.history = this.chatMemory.history.slice(-10);
+            this.chatMemory.lastActive = Date.now();
+            this.salvar();
         },
 
         checkDia() {
@@ -81,7 +115,7 @@ const App = {
             this.salvar();
         },
 
-        // --- CRUD Tarefas ---
+        // --- CRUD TAREFAS ---
         addTarefa(texto, imp, urg, tipo = 'manutencao', inbox = false) {
             if (!Array.isArray(this.usuario.tarefas)) this.usuario.tarefas = [];
             this.usuario.tarefas.push({
@@ -96,7 +130,6 @@ const App = {
             this.salvar();
         },
         atualizarTarefa(id, dados) {
-            // Busca flexível (String vs Number)
             const t = this.usuario.tarefas.find(task => String(task.id) === String(id));
             if (t) {
                 Object.assign(t, dados);
@@ -104,7 +137,7 @@ const App = {
             }
         },
         concluirTarefa(id, minutos) {
-            const idx = this.usuario.tarefas.findIndex(t => t.id == id); // Comparação flexível
+            const idx = this.usuario.tarefas.findIndex(t => String(t.id) === String(id));
             if (idx !== -1) {
                 const t = this.usuario.tarefas[idx];
                 this.usuario.historico.push({
@@ -119,7 +152,7 @@ const App = {
         },
         delTarefa(id) {
             if (Array.isArray(this.usuario.tarefas)) {
-                this.usuario.tarefas = this.usuario.tarefas.filter(t => t.id != id);
+                this.usuario.tarefas = this.usuario.tarefas.filter(t => String(t.id) !== String(id));
                 this.salvar();
             }
         },
@@ -130,7 +163,7 @@ const App = {
 
         obterTarefa(id) {
             if (!Array.isArray(this.usuario.tarefas)) return null;
-            return this.usuario.tarefas.find(t => t.id == id); // Comparação flexível
+            return this.usuario.tarefas.find(t => String(t.id) === String(id));
         },
 
         moverInboxParaMatriz(id, imp, urg, tipo) {
@@ -144,7 +177,7 @@ const App = {
             }
         },
 
-        // --- CRUD Hábitos ---
+        // --- CRUD HÁBITOS ---
         addHabito(t) {
             if (!Array.isArray(this.usuario.habitos)) this.usuario.habitos = [];
             this.usuario.habitos.push({
@@ -179,7 +212,7 @@ const App = {
             }
         },
 
-        // --- Analytics ---
+        // --- ANALYTICS ---
         getXP() {
             return (this.usuario.historico || []).reduce((a, b) => a + (b.tempoInvestido || 0), 0);
         },
@@ -192,18 +225,16 @@ const App = {
         },
         getNivel() {
             const xp = this.getXP();
-            if (xp < 60) return {
+            return xp < 60 ? {
                 t: "Iniciante",
                 i: "🌱"
-            };
-            if (xp < 300) return {
+            } : (xp < 300 ? {
                 t: "Focado",
                 i: "🧘"
-            };
-            return {
+            } : {
                 t: "Lenda",
                 i: "👑"
-            };
+            });
         },
         getDadosGraf() {
             let d = {
@@ -241,7 +272,7 @@ const App = {
                     this.salvar();
                     return true;
                 }
-            } catch (e) { }
+            } catch (e) {}
             return false;
         },
         obterFraseAleatoria() {
@@ -250,7 +281,7 @@ const App = {
     },
 
     // ============================================================
-    // 2. VIEW (Interface)
+    // 2. VIEW
     // ============================================================
     View: {
         els: {
@@ -367,7 +398,7 @@ const App = {
 
             (App.Model.usuario.tarefas || []).forEach(t => {
                 const badge = t.tipo === 'crescimento' ? '<span class="badge badge-crescimento ms-2">🚀</span>' : '<span class="badge badge-manutencao ms-2">🔧</span>';
-                const html = `<li class="list-group-item d-flex justify-content-between align-items-center animate-fade-in"><div class="d-flex align-items-center gap-2 overflow-hidden w-100">${t.isInbox ? `<button class="btn btn-sm btn-outline-info rounded-circle" onclick="App.Controller.iniciarProcessamentoInbox(${t.id})"><i class="ph ph-list-plus"></i></button>` : `<button class="btn btn-sm btn-light rounded-circle border shadow-sm" onclick="App.Controller.startFocus(${t.id})"><i class="ph ph-play-fill text-primary"></i></button>`}<span class="task-text text-truncate">${t.texto}</span>${!t.isInbox ? badge : ''}</div><i class="ph ph-trash btn-delete-task ms-2" onclick="App.Controller.delTask(${t.id})"></i></li>`;
+                const html = `<li class="list-group-item d-flex justify-content-between align-items-center animate-fade-in"><div class="d-flex align-items-center gap-2 overflow-hidden w-100">${t.isInbox ? `<button class="btn btn-sm btn-outline-info rounded-circle" onclick="App.Controller.iniciarProcessamentoInbox(${t.id})"><i class="ph ph-list-plus"></i></button>` : `<button class="btn btn-sm btn-light rounded-circle border shadow-sm" onclick="App.Controller.startFocus(${t.id})"><i class="ph ph-play-fill text-primary"></i></button>`}<span class="task-text text-truncate">${t.texto}</span>${!t.isInbox?badge:''}</div><i class="ph ph-trash btn-delete-task ms-2" onclick="App.Controller.delTask(${t.id})"></i></li>`;
                 if (t.isInbox) ls.inbox.innerHTML += html;
                 else if (t.urgente && t.importante) {
                     ls.q1.innerHTML += html;
@@ -404,7 +435,7 @@ const App = {
             if (lh) {
                 lh.innerHTML = '';
                 (App.Model.usuario.habitos || []).forEach(h => {
-                    lh.innerHTML += `<li class="list-group-item d-flex justify-content-between"><div class="d-flex gap-3"><input class="form-check-input mt-0" type="checkbox" ${h.concluidoHoje ? 'checked' : ''} onchange="App.Controller.toggleHabit(${h.id})"><span>${h.texto}</span><small>🔥 ${h.streak}</small></div><i class="ph ph-trash opacity-50" onclick="App.Controller.delHabit(${h.id})"></i></li>`
+                    lh.innerHTML += `<li class="list-group-item d-flex justify-content-between"><div class="d-flex gap-3"><input class="form-check-input mt-0" type="checkbox" ${h.concluidoHoje?'checked':''} onchange="App.Controller.toggleHabit(${h.id})"><span>${h.texto}</span><small>🔥 ${h.streak}</small></div><i class="ph ph-trash opacity-50" onclick="App.Controller.delHabit(${h.id})"></i></li>`
                 });
             }
         },
@@ -415,17 +446,16 @@ const App = {
             document.getElementById('display-minutos-foco').innerText = m;
             document.getElementById('badge-nivel').innerText = `${nv.i} ${nv.t}`;
             const b = document.getElementById('barra-dia-fundo');
-            if (b) b.style.width = `${Math.min((m / 240) * 100, 100)}%`;
+            if (b) b.style.width = `${Math.min((m/240)*100,100)}%`;
         },
         updateTimer(r, t) {
             const m = Math.floor(r / 60),
                 s = Math.floor(r % 60);
-            document.getElementById('foco-timer').innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-            document.getElementById('barra-progresso').style.width = `${100 - ((r / t) * 100)}%`;
+            document.getElementById('foco-timer').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            document.getElementById('barra-progresso').style.width = `${100-((r/t)*100)}%`;
         },
 
         alternarSom(t) {
-            // Fix Audio Object
             if (this.currentSound === t) {
                 this.audio.pause();
                 this.currentSound = null;
@@ -433,7 +463,7 @@ const App = {
                 this.stopSound();
                 this.audio.src = this.ambience[t];
                 this.audio.loop = true;
-                this.audio.play().catch(e => console.log("Audio play error:", e));
+                this.audio.play().catch(() => {});
                 this.currentSound = t;
             }
             this.updateSoundBtns();
@@ -458,6 +488,37 @@ const App = {
             });
         },
 
+        // --- CHAT VISUAL ---
+        appendChatBubble(texto, tipo) {
+            const container = document.getElementById('chat-history');
+            const id = 'bubble-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = `chat-bubble ${tipo}`;
+            div.innerHTML = tipo === 'ai' ? texto : texto.replace(/\n/g, '<br>');
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return id;
+        },
+
+        restoreChatHistory(history) {
+            const container = document.getElementById('chat-history');
+            if (history.length > 0) container.innerHTML = '';
+            history.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = `chat-bubble ${msg.role === 'user' ? 'user' : 'ai'}`;
+                div.innerHTML = msg.content.replace(/\n/g, '<br>');
+                container.appendChild(div);
+            });
+            container.scrollTop = container.scrollHeight;
+        },
+
+        formatarTextoIA(texto) {
+            // Remove as tags de comando para não mostrar pro usuário
+            const limpo = texto.replace(/\[ADD:.*?\]/g, '').replace(/\[ORGANIZE\]/g, '').trim();
+            return limpo.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+        },
+
         showReport() {
             document.getElementById('review-total-minutos').innerText = App.Model.getXP();
             document.getElementById('review-tarefas-feitas').innerText = (App.Model.usuario.historico || []).length;
@@ -476,7 +537,6 @@ const App = {
                     fb.className = "alert alert-warning border mt-2";
                 } else fb.innerHTML = "Continue registrando.";
             }
-            // Graficos
             const c1 = document.getElementById('graficoFoco');
             if (c1) {
                 if (this.charts.f) this.charts.f.destroy();
@@ -539,17 +599,16 @@ const App = {
     // ============================================================
     Controller: {
         pendingId: null,
-        pendingTask: null,
         inboxProcessId: null,
 
         init() {
-            if(App.Model.carregar()) {
-                App.View.toDash(); 
+            if (App.Model.carregar()) {
+                App.View.toDash();
             } else {
-                // Inicia no passo 1
                 App.Controller.atualizarOnboarding(1);
             }
 
+            // Listeners
             document.getElementById('input-tarefa-texto').addEventListener('keypress', e => {
                 if (e.key === 'Enter') App.Controller.tentarAdicionarTarefa();
             });
@@ -557,12 +616,19 @@ const App = {
                 if (e.key === 'Enter') App.Controller.adicionarHabito();
             });
 
+            // CORREÇÃO DO ENTER NO CHAT
+            document.getElementById('input-chat').addEventListener('keydown', e => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    App.Controller.enviarMensagemChat();
+                }
+            });
+
             document.addEventListener('keydown', e => {
                 if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
                 if (e.key.toLowerCase() === 'n') {
                     e.preventDefault();
-                    const el = document.getElementById('input-tarefa-texto');
-                    if (el) el.focus();
+                    document.getElementById('input-tarefa-texto').focus();
                 }
                 if (e.key.toLowerCase() === 'c') {
                     e.preventDefault();
@@ -578,59 +644,51 @@ const App = {
             if ("Notification" in window && Notification.permission !== "granted") Notification.requestPermission();
         },
 
-
-        // Atualiza a barra e muda o slide
+        // --- ONBOARDING ---
         atualizarOnboarding(passo) {
-            // Esconde todos
             document.querySelectorAll('.step-container').forEach(e => e.classList.add('d-none'));
-            // Mostra o atual
             const atual = document.getElementById(`step-${passo}`);
             if (atual) {
                 atual.classList.remove('d-none');
-                // Foco automático no input
                 const input = atual.querySelector('input, textarea');
                 if (input) setTimeout(() => input.focus(), 300);
             }
-
-            // Atualiza barra de progresso
             const prog = document.getElementById('onboarding-progress');
             if (prog) prog.style.width = `${passo * 33.33}%`;
         },
-
         proximoPasso(n) {
-            // Salva o dado do passo anterior
             if (n === 2) {
                 const nome = document.getElementById('input-name').value.trim();
-                if (!nome) return App.View.notify("Por favor, diga seu nome.", "primary");
+                if (!nome) return App.View.notify("Diga seu nome!", "primary");
                 App.Model.atualizarUsuario('nome', nome);
             }
             if (n === 3) {
                 const prop = document.getElementById('input-proposito').value.trim();
-                if (!prop) return App.View.notify("Defina um objetivo.", "primary");
+                if (!prop) return App.View.notify("Defina um objetivo!", "primary");
                 App.Model.atualizarUsuario('proposito', prop);
             }
-
             this.atualizarOnboarding(n);
         },
-
         voltarPasso(n) {
             this.atualizarOnboarding(n);
         },
-
         finalizarOnboarding() {
             const papeis = document.getElementById('input-papeis').value.split(',');
             App.Model.atualizarUsuario('papeis', papeis);
+            const proposito = App.Model.usuario.proposito;
+            if (proposito) App.Model.addTarefa(proposito, true, true, 'crescimento');
             App.View.toDash();
             App.View.notify(`Bem-vindo, ${App.Model.usuario.nome}! 🚀`);
         },
 
-        // --- Adicionar Tarefas e Gatekeeper ---
+        // --- TAREFAS ---
         tentarAdicionarTarefa() {
             const txt = document.getElementById('input-tarefa-texto').value.trim();
             if (!txt) return App.View.notify("Escreva algo!", "error");
-            const imp = document.getElementById('check-importante').checked,
-                urg = document.getElementById('check-urgente').checked;
+            const imp = document.getElementById('check-importante').checked;
+            const urg = document.getElementById('check-urgente').checked;
             const tipo = document.querySelector('input[name="tipoTarefa"]:checked').value;
+
             const growthCount = (App.Model.usuario.tarefas || []).filter(t => t.tipo === 'crescimento').length;
             if (tipo === 'crescimento' && growthCount >= 3) {
                 this.pendingTask = {
@@ -647,17 +705,11 @@ const App = {
             this.executarAdicao(txt, imp, urg, tipo);
         },
         rebaixarParaManutenção() {
-            if (this.pendingTask) {
-                this.executarAdicao(this.pendingTask.txt, this.pendingTask.imp, this.pendingTask.urg, 'manutencao');
-                App.View.notify("Sábia escolha.", "success");
-            }
+            this.executarAdicao(this.pendingTask.txt, this.pendingTask.imp, this.pendingTask.urg, 'manutencao');
             bootstrap.Modal.getInstance(document.getElementById('modalGatekeeper')).hide();
         },
         forcarAdicao() {
-            if (this.pendingTask) {
-                this.executarAdicao(this.pendingTask.txt, this.pendingTask.imp, this.pendingTask.urg, 'crescimento');
-                App.View.notify("Adicionado.", "warning");
-            }
+            this.executarAdicao(this.pendingTask.txt, this.pendingTask.imp, this.pendingTask.urg, 'crescimento');
             bootstrap.Modal.getInstance(document.getElementById('modalGatekeeper')).hide();
         },
         executarAdicao(t, i, u, type, inbox = false) {
@@ -665,28 +717,24 @@ const App = {
             App.View.render();
             document.getElementById('input-tarefa-texto').value = '';
         },
-        adicionarTarefa() {
-            this.tentarAdicionarTarefa();
-        },
 
-        // --- IA INTEGRATION ---
+        // --- IA MAGIC SORT ---
         async organizarComIA() {
             const provider = App.Model.usuario.config.provider || 'gemini';
             const apiKey = App.Model.usuario.config.apiKey;
             if (!apiKey) {
                 new bootstrap.Modal(document.getElementById('modalConfig')).show();
-                return App.View.notify("Chave API necessária!", "error");
+                return App.View.notify("Configure sua API Key!", "error");
             }
+
             const inboxTasks = App.Model.usuario.tarefas.filter(t => t.isInbox);
             if (inboxTasks.length === 0) return App.View.notify("Inbox vazia.", "primary");
 
-            App.View.toggleLoading(true, `IA ${provider.toUpperCase()} trabalhando...`);
-            try {
-                // Passa IDs como String para evitar conflitos de tipo
-                const classified = await AI_Manager.classificar(provider, apiKey, inboxTasks);
+            App.View.toggleLoading(true, `IA ${provider.toUpperCase()} organizando...`);
 
+            try {
+                const classified = await AI_Manager.classificar(provider, apiKey, inboxTasks);
                 classified.forEach(c => {
-                    // Atualiza a tarefa original (comparando ID como string)
                     App.Model.atualizarTarefa(c.id, {
                         importante: c.importante,
                         urgente: c.urgente,
@@ -694,46 +742,117 @@ const App = {
                         isInbox: false
                     });
                 });
-
                 App.View.render();
                 App.View.notify(`${classified.length} tarefas organizadas!`, "success");
-            } catch (error) {
-                alert(`Erro IA: ${error.message}`);
+            } catch (e) {
+                alert(`Erro IA: ${e.message}`);
             } finally {
                 App.View.toggleLoading(false);
             }
         },
 
-        // --- Inbox Manual ---
-        abrirBrainDump() {
-            new bootstrap.Modal(document.getElementById('modalBrainDump')).show();
-            setTimeout(() => document.getElementById('input-brain-dump').focus(), 500);
+        // --- CHAT COM IA & AGENTE ---
+        abrirChat() {
+            new bootstrap.Modal(document.getElementById('modalChat')).show();
+            if (App.Model.chatMemory.history.length > 0) App.View.restoreChatHistory(App.Model.chatMemory.history);
+            setTimeout(() => document.getElementById('input-chat').focus(), 500);
         },
-        adicionarBrainDump() {
-            const t = document.getElementById('input-brain-dump').value.trim();
-            if (t) {
-                this.executarAdicao(t, false, false, 'manutencao', true);
-                document.getElementById('input-brain-dump').value = '';
-                bootstrap.Modal.getInstance(document.getElementById('modalBrainDump')).hide();
-                App.View.notify("Capturado!");
+        async enviarMensagemChat() {
+            const input = document.getElementById('input-chat');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            input.value = ''; // Limpa input
+            App.View.appendChatBubble(msg, 'user');
+            App.Model.pushChatMessage('user', msg);
+
+            const context = {
+                nome: App.Model.usuario.nome || "Usuário",
+                proposito: App.Model.usuario.proposito || "Focar",
+                tarefas: App.Model.usuario.tarefas || []
+            };
+            const provider = App.Model.usuario.config.provider || 'gemini';
+            const apiKey = App.Model.usuario.config.apiKey;
+
+            if (!apiKey) return App.View.appendChatBubble("⚠️ Configure sua API Key nos ajustes.", 'ai');
+
+            const loadingId = App.View.appendChatBubble('<div class="spinner-grow spinner-grow-sm" role="status"></div>', 'ai');
+
+            try {
+                // Chama a IA (com histórico)
+                const resposta = await AI_Manager.chat(provider, apiKey, msg, context, App.Model.chatMemory.history);
+
+                // Processa a resposta em busca de Comandos
+                this.processarComandosIA(resposta, loadingId);
+
+            } catch (error) {
+                const bubble = document.getElementById(loadingId);
+                if (bubble) bubble.innerText = "Erro: " + error.message;
             }
         },
-        iniciarProcessamentoInbox(id) {
-            const t = App.Model.obterTarefa(id);
-            if (!t) return;
-            this.inboxProcessId = id;
-            document.getElementById('inbox-task-text').innerText = `"${t.texto}"`;
-            new bootstrap.Modal(document.getElementById('modalProcessarInbox')).show();
-        },
-        confirmarProcessamento(imp, urg) {
-            const tipo = document.querySelector('input[name="procTipo"]:checked').value;
-            App.Model.moverInboxParaMatriz(this.inboxProcessId, imp, urg, tipo);
-            App.View.render();
-            bootstrap.Modal.getInstance(document.getElementById('modalProcessarInbox')).hide();
-            App.View.notify("Organizado!", "success");
+
+        // --- CÉREBRO DO AGENTE (EXECUTA AÇÕES) ---
+        processarComandosIA(resposta, bubbleId) {
+            let textoFinal = resposta;
+            let acaoExecutada = false;
+
+            // Comando [ADD: ...]
+            const addMatch = resposta.match(/\[ADD: (.*?)\]/);
+            if (addMatch) {
+                const tarefaTexto = addMatch[1];
+                App.Model.addTarefa(tarefaTexto, false, false, 'manutencao', true); // Adiciona na Inbox
+                App.View.render();
+                App.View.notify(`IA criou: "${tarefaTexto}"`, "success");
+                textoFinal = textoFinal.replace(addMatch[0], ''); // Remove comando do texto
+                acaoExecutada = true;
+            }
+
+            // Comando [ORGANIZE]
+            if (resposta.includes('[ORGANIZE]')) {
+                this.organizarComIA();
+                textoFinal = textoFinal.replace('[ORGANIZE]', '');
+                acaoExecutada = true;
+            }
+
+            // Atualiza UI do Chat
+            const bubble = document.getElementById(bubbleId);
+            if (bubble) bubble.innerHTML = App.View.formatarTextoIA(textoFinal);
+
+            // Salva na memória o texto limpo (sem comandos técnicos)
+            App.Model.pushChatMessage('ai', textoFinal);
         },
 
-        // --- Ações ---
+        // --- VOZ ---
+        toggleVoice(inputId, btnId) {
+            if (!('webkitSpeechRecognition' in window)) return App.View.notify("Use Chrome/Edge.", "error");
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = 'pt-BR';
+            recognition.start();
+            const btn = document.getElementById(btnId);
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin text-danger"></i>';
+            recognition.onresult = (e) => {
+                const transcript = e.results[0][0].transcript;
+                const input = document.getElementById(inputId);
+                input.value = input.value ? `${input.value} ${transcript}` : transcript;
+            };
+            recognition.onend = () => {
+                btn.innerHTML = '<i class="ph ph-microphone"></i>';
+                App.View.notify("Ok!");
+            };
+        },
+
+        // --- EXTRAS ---
+        iniciarProcessamentoInbox(id) {
+            this.inboxProcessId = id;
+            document.getElementById('inbox-task-text').innerText = App.Model.obterTarefa(id).texto;
+            new bootstrap.Modal(document.getElementById('modalProcessarInbox')).show();
+        },
+        confirmarProcessamento(i, u) {
+            const tipo = document.querySelector('input[name="procTipo"]:checked').value;
+            App.Model.moverInboxParaMatriz(this.inboxProcessId, i, u, tipo);
+            App.View.render();
+            bootstrap.Modal.getInstance(document.getElementById('modalProcessarInbox')).hide();
+        },
         delTask(id) {
             if (confirm("Excluir?")) {
                 App.Model.delTarefa(id);
@@ -758,8 +877,6 @@ const App = {
                 App.View.renderHabits();
             }
         },
-
-        // --- Foco ---
         startFocus(id) {
             this.pendingId = id;
             new bootstrap.Modal(document.getElementById('modalEnergia')).show();
@@ -779,19 +896,19 @@ const App = {
         },
         loopTimer() {
             if (App.Model.timer.intervaloId) clearInterval(App.Model.timer.intervaloId);
-            const dur = App.Model.timer.tempoPadrao * 1000,
-                start = App.Model.timer.startTime;
+            const dur = App.Model.timer.tempoPadrao * 1000;
+            const start = App.Model.timer.startTime;
             App.Model.timer.intervaloId = setInterval(() => {
                 if (!App.Model.timer.ativo) return;
-                const elap = Date.now() - start,
-                    rem = Math.ceil((dur - elap) / 1000);
+                const elap = Date.now() - start;
+                const rem = Math.ceil((dur - elap) / 1000);
                 App.Model.timer.tempoRestante = rem;
                 App.View.updateTimer(rem, App.Model.timer.tempoPadrao);
                 if (rem <= 0) {
                     this.pausarFoco();
                     App.View.audio.play();
-                    if (Notification.permission === "granted") new Notification("Fim!");
-                    App.View.notify("Tempo esgotado!", "success");
+                    new Notification("Fim!");
+                    App.View.notify("Acabou!");
                 }
             }, 1000);
         },
@@ -821,13 +938,29 @@ const App = {
             App.View.stopSound();
             App.View.toDash();
         },
-
-        // --- Configs ---
-        alternarTema() {
-            const n = App.Model.usuario.config.tema === 'light' ? 'dark' : 'light';
-            App.Model.usuario.config.tema = n;
+        abrirBrainDump() {
+            new bootstrap.Modal(document.getElementById('modalBrainDump')).show();
+            setTimeout(() => document.getElementById('input-brain-dump').focus(), 500);
+        },
+        adicionarBrainDump() {
+            const t = document.getElementById('input-brain-dump').value.trim();
+            if (t) {
+                this.executarAdicao(t, false, false, 'manutencao', true);
+                document.getElementById('input-brain-dump').value = '';
+                bootstrap.Modal.getInstance(document.getElementById('modalBrainDump')).hide();
+            }
+        },
+        salvarConfiguracoes(fechar = false) {
+            App.Model.usuario.config.tempoFocoMinutos = parseInt(document.getElementById('config-tempo').value);
+            App.Model.usuario.config.provider = document.getElementById('config-provider').value;
+            const k = document.getElementById('config-apikey').value.trim();
+            if (k) App.Model.usuario.config.apiKey = k;
             App.Model.salvar();
-            App.View.applyTheme();
+            App.View.notify("Salvo!");
+            if (fechar) {
+                bootstrap.Modal.getInstance(document.getElementById('modalConfig')).hide();
+                if (App.Model.usuario.tarefas.filter(t => t.isInbox).length > 0 && k) setTimeout(() => App.Controller.organizarComIA(), 500);
+            }
         },
         atualizarLinkKey() {
             const p = document.getElementById('config-provider').value;
@@ -843,19 +976,6 @@ const App = {
                 l.innerText = "Chave Gemini ↗";
             }
         },
-        salvarConfiguracoes(fechar = false) {
-            App.Model.usuario.config.tempoFocoMinutos = parseInt(document.getElementById('config-tempo').value);
-            App.Model.usuario.config.provider = document.getElementById('config-provider').value;
-            const key = document.getElementById('config-apikey').value.trim();
-            if (key) App.Model.usuario.config.apiKey = key;
-
-            App.Model.salvar();
-            App.View.notify("Salvo!");
-            if (fechar) {
-                bootstrap.Modal.getInstance(document.getElementById('modalConfig')).hide();
-                if (App.Model.usuario.tarefas.filter(t => t.isInbox).length > 0 && key) setTimeout(() => App.Controller.organizarComIA(), 500);
-            }
-        },
         baixarBackup() {
             const a = document.createElement('a');
             a.href = "data:text/json;charset=utf-8," + encodeURIComponent(App.Model.exportBackup());
@@ -866,11 +986,10 @@ const App = {
         },
         restaurarBackup() {
             const f = document.getElementById('arquivo-backup').files[0];
-            if (!f) return App.View.notify("Selecione arquivo", "error");
+            if (!f) return;
             const r = new FileReader();
             r.onload = e => {
                 if (App.Model.importBackup(e.target.result)) location.reload();
-                else App.View.notify("Erro", "error");
             };
             r.readAsText(f);
         },
@@ -883,16 +1002,16 @@ const App = {
         abrirRelatorio() {
             App.View.showReport();
         },
-
+        alternarTema() {
+            const n = App.Model.usuario.config.tema === 'light' ? 'dark' : 'light';
+            App.Model.usuario.config.tema = n;
+            App.Model.salvar();
+            App.View.applyTheme();
+        },
         iniciarShutdown() {
-            const m = App.Model.calcularMinutosHoje(),
-                t = (App.Model.usuario.historico || []).length,
-                p = (App.Model.usuario.tarefas || []).length,
-                d = new Date().toLocaleDateString();
-            let txt = `🚀 *Resumo ${d}*\n✅ ${t} Feitas\n⏱ ${m} min Foco\n📌 ${p} Pendentes\n`;
-            (App.Model.usuario.historico || []).slice(-3).forEach(x => txt += `▪ ${x.texto}\n`);
+            const m = App.Model.calcularMinutosHoje();
             document.getElementById('shutdown-score').innerText = `+${m}`;
-            document.getElementById('shutdown-resumo-texto').innerText = txt;
+            document.getElementById('shutdown-resumo-texto').innerText = `Resumo: ${m} min de foco hoje!`;
             new bootstrap.Modal(document.getElementById('modalShutdown')).show();
         },
         copiarResumo() {
@@ -904,7 +1023,6 @@ const App = {
                 App.Model.limparTodasTarefas();
                 App.View.render();
                 bootstrap.Modal.getInstance(document.getElementById('modalShutdown')).hide();
-                App.View.notify("Bom descanso! 🌙");
             }
         }
     }
