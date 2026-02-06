@@ -162,6 +162,33 @@ export const Controller = {
         if (input) input.value = '';
     },
 
+    // --- META SEMANAL (MODAL ATUALIZADO) ---
+    definirMetaSemanal() {
+        const input = document.getElementById('input-meta-semanal');
+        if (input) {
+            input.value = Model.usuario.metaSemanal || "";
+            // Atalho para salvar com Enter (sem shift)
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.salvarMetaSemanal();
+                }
+            };
+        }
+        View.toggleModal('modalMeta', 'show');
+        setTimeout(() => input && input.focus(), 300);
+    },
+
+    salvarMetaSemanal() {
+        const val = document.getElementById('input-meta-semanal').value.trim();
+        if (val) {
+            Model.atualizarUsuario('metaSemanal', val);
+            this.refreshDash();
+            View.notify("Foco definido! 🎯");
+        }
+        View.toggleModal('modalMeta', 'hide');
+    },
+
     // --- IA ---
     async organizarComIA() {
         const provider = Model.usuario.config.provider || 'gemini';
@@ -214,9 +241,12 @@ export const Controller = {
         if (!apiKey) return View.appendChatBubble("⚠️ Configure sua API Key nos ajustes.", 'ai');
 
         const loadingId = View.appendChatBubble('<div class="spinner-grow spinner-grow-sm" role="status"></div> Pensando...', 'ai');
+
+        // Contexto completo com a Meta Semanal
         const context = {
             nome: Model.usuario.nome,
             proposito: Model.usuario.proposito,
+            metaSemanal: Model.usuario.metaSemanal, // IMPORTANTE
             tarefas: Model.usuario.tarefas
         };
 
@@ -230,17 +260,32 @@ export const Controller = {
     },
     processarComandosIA(resposta, bubbleId) {
         let textoFinal = resposta;
+
+        // Comando ADD
         const addMatch = resposta.match(/\[ADD: (.*?)\]/);
         if (addMatch) {
             Model.addTarefa(addMatch[1], false, false, 'manutencao', true);
-            View.render(Model.usuario);
+            this.refreshDash(); // Atualiza paineis
             View.notify(`IA criou: "${addMatch[1]}"`, "success");
             textoFinal = textoFinal.replace(addMatch[0], '');
         }
+
+        // Comando SET_GOAL (NOVO!)
+        const goalMatch = resposta.match(/\[SET_GOAL: (.*?)\]/);
+        if (goalMatch) {
+            const novaMeta = goalMatch[1];
+            Model.atualizarUsuario('metaSemanal', novaMeta);
+            this.refreshDash();
+            View.notify(`Meta da Semana atualizada! 🎯`, "success");
+            textoFinal = textoFinal.replace(goalMatch[0], '');
+        }
+
+        // Comando ORGANIZE
         if (resposta.includes('[ORGANIZE]')) {
             this.organizarComIA();
             textoFinal = textoFinal.replace('[ORGANIZE]', '');
         }
+
         const bubble = document.getElementById(bubbleId);
         if (bubble) bubble.innerHTML = View.formatarTextoIA(textoFinal);
         Model.pushChatMessage('ai', textoFinal);
@@ -275,7 +320,7 @@ export const Controller = {
     delTask(id) {
         if (confirm("Excluir?")) {
             Model.delTarefa(id);
-            View.render(Model.usuario);
+            this.refreshDash();
         }
     },
     adicionarHabito() {
@@ -384,7 +429,7 @@ export const Controller = {
     confirmarProcessamento(i, u) {
         const tipo = document.querySelector('input[name="procTipo"]:checked').value;
         Model.moverInboxParaMatriz(this.inboxProcessId, i, u, tipo);
-        View.render(Model.usuario);
+        this.refreshDash();
         View.toggleModal('modalProcessarInbox', 'hide');
         View.notify("Organizado!", "success");
     },
@@ -434,7 +479,7 @@ export const Controller = {
         View.applyTheme(Model.usuario.config.tema);
     },
 
-    // --- SHUTDOWN (CORRIGIDO) ---
+    // --- SHUTDOWN ---
     iniciarShutdown() {
         const m = Model.getMinHoje();
         const t = (Model.usuario.historico || []).length;
@@ -452,11 +497,16 @@ export const Controller = {
         View.notify("Copiado!");
     },
     confirmarShutdown() {
-        if (confirm("Limpar dia?")) {
-            Model.limparTodasTarefas();
+        if (confirm("Encerrar o dia? Tarefas pendentes serão movidas para amanhã.")) {
+            const resultado = Model.encerrarDia();
             this.refreshDash();
             View.toggleModal('modalShutdown', 'hide');
-            View.notify("Bom descanso! 🌙");
+
+            if (resultado.migradas > 0) {
+                View.notify(`${resultado.migradas} tarefas migradas para amanhã. Foco! 🗓️`, "warning");
+            } else {
+                View.notify("Dia limpo! Bom descanso! 🌙", "success");
+            }
         }
     }
 };

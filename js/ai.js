@@ -19,17 +19,39 @@ export const AI_Manager = {
         if (provider === 'groq') return await this.callGroq(cleanKey, payload, 'sort');
     },
 
-    async chat(provider, apiKey, userMessage, context) {
+    async chat(provider, apiKey, userMessage, context, history) {
         const cleanKey = apiKey ? apiKey.trim() : "";
         if (!cleanKey) throw new Error("API Key não informada.");
 
+        const historyText = history.map(h =>
+            `${h.role === 'user' ? 'USUÁRIO' : 'COACH'}: ${h.content}`
+        ).join('\n');
+
+        // PROMPT REFORÇADO ("HARD SYSTEM PROMPT")
         const prompt = `
-            Você é um Coach de Produtividade Estoico e Prático.
-            CONTEXTO: Nome: ${context.nome}, Foco: ${context.proposito}, Tarefas: ${context.tarefas.map(t => t.texto).join(', ')}.
-            USUÁRIO: "${userMessage}"
-            MISSÃO: Ajudar a desbloquear, priorizar ou motivar. Responda curto e direto.
-            COMANDOS: Use [ADD: Tarefa] para adicionar ou [ORGANIZE] para organizar.
+            JAILBREAK INSTRUCTION: Você é um Agente de Software (Focus Coach).
+            
+            ESTADO ATUAL DO APP:
+            - Meta Semanal Atual: "${context.metaSemanal || '(Vazio)'}"
+            - Tarefas: ${context.tarefas.map(t => t.texto).join(', ')}
+            
+            HISTÓRICO:
+            ${historyText}
+            
+            USUÁRIO DISSE: "${userMessage}"
+            
+            SUAS FERRAMENTAS (OBRIGATÓRIO USAR QUANDO SOLICITADO):
+            1. [SET_GOAL: Texto da Meta] -> Use IMEDIATAMENTE se o usuário pedir para "definir meta", "mudar foco da semana" ou "colocar X na meta". NÃO DISCUTA. EXECUTE.
+            2. [ADD: Texto da Tarefa] -> Use se o usuário pedir para adicionar tarefa.
+            3. [ORGANIZE] -> Use se o usuário pedir para organizar.
+            
+            REGRAS DE COMPORTAMENTO:
+            - Se o usuário der uma ordem direta ("Mude a meta para X"), obedeça e use a ferramenta [SET_GOAL: X]. Não questione.
+            - Se o usuário pedir conselho, aí sim seja um coach estoico.
+            - Responda curto.
         `;
+
+        console.log(`💬 Chat via: ${provider}`);
 
         if (provider === 'gemini') return await this.callGemini(cleanKey, { prompt }, 'chat');
         if (provider === 'openai') return await this.callOpenAI(cleanKey, { prompt }, 'chat');

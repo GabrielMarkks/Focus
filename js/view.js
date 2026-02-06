@@ -179,16 +179,24 @@ export const View = {
             q4: 0
         };
 
+        // ATUALIZAÇÃO DA META SEMANAL
+        const metaEl = document.getElementById('texto-meta-semanal');
+        if (metaEl) {
+            metaEl.innerText = usuario.metaSemanal || "🎯 Clique para definir seu Foco Semanal";
+            // Adiciona um estilo visual se estiver preenchido
+            metaEl.style.opacity = usuario.metaSemanal ? "1" : "0.5";
+        }
+
         (usuario.tarefas || []).forEach(t => {
             const badge = t.tipo === 'crescimento' ? '<span class="badge badge-crescimento ms-2">🚀</span>' : '<span class="badge badge-manutencao ms-2">🔧</span>';
             // Nota: onclicks apontam para App.Controller (Bridge global)
             const html = `
                 <li class="list-group-item d-flex justify-content-between align-items-center animate-fade-in">
                     <div class="d-flex align-items-center gap-2 overflow-hidden w-100">
-                        ${t.isInbox 
-                            ? `<button class="btn btn-sm btn-outline-info rounded-circle" onclick="App.Controller.iniciarProcessamentoInbox(${t.id})"><i class="ph ph-list-plus"></i></button>` 
-                            : `<button class="btn btn-sm btn-light rounded-circle border shadow-sm" onclick="App.Controller.startFocus(${t.id})"><i class="ph ph-play-fill text-primary"></i></button>`
-                        }
+                        ${t.isInbox
+                    ? `<button class="btn btn-sm btn-outline-info rounded-circle" onclick="App.Controller.iniciarProcessamentoInbox(${t.id})"><i class="ph ph-list-plus"></i></button>`
+                    : `<button class="btn btn-sm btn-light rounded-circle border shadow-sm" onclick="App.Controller.startFocus(${t.id})"><i class="ph ph-play-fill text-primary"></i></button>`
+                }
                         <span class="task-text text-truncate">${t.texto}</span>
                         ${!t.isInbox ? badge : ''}
                     </div>
@@ -242,7 +250,7 @@ export const View = {
                 lh.innerHTML += `
                 <li class="list-group-item d-flex justify-content-between">
                     <div class="d-flex gap-3">
-                        <input class="form-check-input mt-0" type="checkbox" ${h.concluidoHoje?'checked':''} onchange="App.Controller.toggleHabit(${h.id})">
+                        <input class="form-check-input mt-0" type="checkbox" ${h.concluidoHoje ? 'checked' : ''} onchange="App.Controller.toggleHabit(${h.id})">
                         <span>${h.texto}</span>
                         <small>🔥 ${h.streak}</small>
                     </div>
@@ -261,14 +269,14 @@ export const View = {
         document.getElementById('badge-nivel').innerText = `${nivel.i} ${nivel.t}`;
 
         const b = document.getElementById('barra-dia-fundo');
-        if (b) b.style.width = `${Math.min((minHoje/240)*100,100)}%`;
+        if (b) b.style.width = `${Math.min((minHoje / 240) * 100, 100)}%`;
     },
 
     updateTimer(r, t) {
         const m = Math.floor(r / 60);
         const s = Math.floor(r % 60);
-        document.getElementById('foco-timer').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-        document.getElementById('barra-progresso').style.width = `${100-((r/t)*100)}%`;
+        document.getElementById('foco-timer').innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        document.getElementById('barra-progresso').style.width = `${100 - ((r / t) * 100)}%`;
     },
 
     alternarSom(t) {
@@ -279,7 +287,7 @@ export const View = {
             this.stopSound();
             this.audio.src = this.ambience[t];
             this.audio.loop = true;
-            this.audio.play().catch(() => {});
+            this.audio.play().catch(() => { });
             this.currentSound = t;
         }
         this.updateSoundBtns();
@@ -342,7 +350,7 @@ export const View = {
 
     formatarTextoIA(texto) {
         // Remove comandos internos e formata Markdown básico
-        const limpo = texto.replace(/\[ADD:.*?\]/g, '').replace(/\[ORGANIZE\]/g, '').trim();
+        const limpo = texto.replace(/\[ADD:.*?\]/g, '').replace(/\[SET_GOAL:.*?\]/g, '').trim();
         return limpo.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
     },
 

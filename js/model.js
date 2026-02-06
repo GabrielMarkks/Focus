@@ -50,7 +50,7 @@ export const Model = {
                 });
                 if (!this.usuario.config) this.usuario.config = {};
                 if (!this.usuario.config.provider) this.usuario.config.provider = 'gemini';
-            } catch (e) {}
+            } catch (e) { }
         }
         const c = localStorage.getItem('focusApp_chat');
         if (c) {
@@ -61,7 +61,7 @@ export const Model = {
                     history: [],
                     lastActive: Date.now()
                 };
-            } catch (e) {}
+            } catch (e) { }
         }
         this.checkDia();
         return !!d;
@@ -137,9 +137,27 @@ export const Model = {
             this.salvar();
         }
     },
-    limparTodasTarefas() {
-        this.usuario.tarefas = [];
+    encerrarDia() {
+        if (!Array.isArray(this.usuario.tarefas)) return;
+
+        // 1. Separa o joio do trigo
+        const pendentes = this.usuario.tarefas.filter(t => !t.feita);
+        const concluidas = this.usuario.tarefas.filter(t => t.feita); // (Caso tenha sobrado alguma visualmente)
+
+        // 2. Mantém APENAS as pendentes para amanhã
+        // Opcional: Você pode adicionar uma tag "migrada" ou contar quantas vezes ela foi adiada
+        this.usuario.tarefas = pendentes.map(t => ({
+            ...t,
+            adiada: (t.adiada || 0) + 1 // Contador de vergonha (anti-autoboicote futuro)
+        }));
+
+        // 3. Salva
         this.salvar();
+
+        return {
+            migradas: pendentes.length,
+            limpas: concluidas.length
+        };
     },
     obterTarefa(id) {
         if (!Array.isArray(this.usuario.tarefas)) return null;
@@ -255,7 +273,7 @@ export const Model = {
                 this.salvar();
                 return true;
             }
-        } catch (e) {}
+        } catch (e) { }
         return false;
     },
     obterFraseAleatoria() {
