@@ -1,0 +1,21 @@
+{
+  "name": "Focus Coach Pro",
+  "short_name": "Focus Coach",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#212529",
+  "theme_color": "#0d6efd",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

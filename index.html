@@ -9,6 +9,9 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
 </head>
 
 <body class="bg-body-tertiary">
@@ -28,6 +31,11 @@
                 <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm"
                     onclick="App.Controller.abrirBrainDump()">
                     <i class="ph ph-lightning me-1"></i> <span class="d-none d-sm-inline">Capturar</span>
+                </button>
+
+                <button id="btn-install-app" class="btn btn-outline-light rounded-pill d-none me-2"
+                    onclick="App.installPWA()">
+                    <i class="ph ph-download-simple me-1"></i> Instalar App
                 </button>
 
                 <div class="vr mx-2 d-none d-md-block"></div>
