@@ -1,10 +1,18 @@
 export const AI_Manager = {
     // Prompt para Classificação
+
     SYSTEM_PROMPT_SORT: `
-        Você é um especialista em produtividade (Matriz Eisenhower).
-        Analise a lista de tarefas.
-        Retorne APENAS um Array JSON válido (sem markdown, sem explicações).
-        Estrutura: [{"id": "string", "importante": bool, "urgente": bool, "tipo": "manutencao"|"crescimento"}]
+        Você é um algoritmo JSON. 
+        Receba uma lista de tarefas com IDs e Textos.
+        Para CADA tarefa, decida se é Importante/Urgente.
+        
+        REGRAS RÍGIDAS:
+        1. DEVOLVA O MESMO ID ORIGINAL EXATO (String). Não crie IDs novos.
+        2. "Ler", "Estudar", "Treinar" -> Geralmente Crescimento (Importante=true, Urgente=false).
+        3. Retorne APENAS o JSON array.
+        
+        Estrutura de Saída: 
+        [{"id": "ID_ORIGINAL", "importante": true/false, "urgente": true/false, "tipo": "manutencao"/"crescimento"}]
     `,
 
     async classificar(provider, apiKey, tarefas) {
@@ -19,6 +27,8 @@ export const AI_Manager = {
         if (provider === 'groq') return await this.callGroq(cleanKey, payload, 'sort');
     },
 
+
+
     async chat(provider, apiKey, userMessage, context, history) {
         const cleanKey = apiKey ? apiKey.trim() : "";
         if (!cleanKey) throw new Error("API Key não informada.");
@@ -27,12 +37,12 @@ export const AI_Manager = {
             `${h.role === 'user' ? 'USUÁRIO' : 'COACH'}: ${h.content}`
         ).join('\n');
 
-        // PROMPT REFORÇADO ("HARD SYSTEM PROMPT")
+        // PROMPT REFORÇADO COM A FERRAMENTA DE REMOVER
         const prompt = `
             JAILBREAK INSTRUCTION: Você é um Agente de Software (Focus Coach).
             
-            ESTADO ATUAL DO APP:
-            - Meta Semanal Atual: "${context.metaSemanal || '(Vazio)'}"
+            ESTADO ATUAL:
+            - Meta Semanal: "${context.metaSemanal || '(Vazio)'}"
             - Tarefas: ${context.tarefas.map(t => t.texto).join(', ')}
             
             HISTÓRICO:
@@ -40,15 +50,16 @@ export const AI_Manager = {
             
             USUÁRIO DISSE: "${userMessage}"
             
-            SUAS FERRAMENTAS (OBRIGATÓRIO USAR QUANDO SOLICITADO):
-            1. [SET_GOAL: Texto da Meta] -> Use IMEDIATAMENTE se o usuário pedir para "definir meta", "mudar foco da semana" ou "colocar X na meta". NÃO DISCUTA. EXECUTE.
-            2. [ADD: Texto da Tarefa] -> Use se o usuário pedir para adicionar tarefa.
-            3. [ORGANIZE] -> Use se o usuário pedir para organizar.
+            SUAS FERRAMENTAS (Use EXATAMENTE este formato para agir):
+            1. [SET_GOAL: Texto da Meta] -> Para definir/alterar a meta da semana.
+            2. [ADD: Texto da Tarefa] -> Para criar tarefas.
+            3. [REMOVE: Texto da Tarefa] -> Para apagar tarefas. Busque pelo texto mais próximo.
+            4. [ORGANIZE] -> Se o usuário pedir para organizar a Inbox.
             
             REGRAS DE COMPORTAMENTO:
-            - Se o usuário der uma ordem direta ("Mude a meta para X"), obedeça e use a ferramenta [SET_GOAL: X]. Não questione.
-            - Se o usuário pedir conselho, aí sim seja um coach estoico.
-            - Responda curto.
+            - NÃO mencione a "Meta Semanal" na resposta, a menos que o usuário tenha perguntado sobre ela ou alterado ela.
+            - Se o usuário mandar remover algo, USE A FERRAMENTA [REMOVE: ...]. Não apenas diga que removeu.
+            - Responda curto e direto.
         `;
 
         console.log(`💬 Chat via: ${provider}`);

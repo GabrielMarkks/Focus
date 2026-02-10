@@ -1,3 +1,6 @@
+import confetti from 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/+esm';
+
+
 export const View = {
     // ============================================================
     // 1. ELEMENTOS E ÁUDIO
@@ -14,7 +17,8 @@ export const View = {
     ambience: {
         chuva: 'https://actions.google.com/sounds/v1/weather/rain_heavy_loud.ogg',
         cafe: 'https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg',
-        fluxo: 'https://actions.google.com/sounds/v1/transportation/airplane_cabin_sounds.ogg'
+        fluxo: 'https://actions.google.com/sounds/v1/transportation/airplane_cabin_sounds.ogg',
+        win: 'https://actions.google.com/sounds/v1/cartoon/pop.ogg' // Som de 'Plop' satisfatório
     },
 
     currentSound: null,
@@ -281,6 +285,41 @@ export const View = {
                 lh.innerHTML = '<div class="text-center text-muted small py-3">Nenhum hábito ativo.</div>';
             }
         }
+
+
+    },
+
+    // --- NOVO MÉTODO: RECOMPENSA VISUAL E SONORA ---
+    playReward() {
+        // 1. Som de Vitória
+        const winAudio = new Audio(this.ambience.win);
+        winAudio.volume = 0.5;
+        winAudio.play().catch(() => { }); // Ignora erro se navegador bloquear auto-play
+
+        // 2. Explosão de Confetes (Esquerda e Direita)
+        const duration = 2000;
+        const end = Date.now() + duration;
+
+        (function frame() {
+            confetti({
+                particleCount: 5,
+                angle: 60,
+                spread: 55,
+                origin: { x: 0 },
+                colors: ['#0d6efd', '#198754', '#ffc107'] // Cores do seu app (Azul, Verde, Amarelo)
+            });
+            confetti({
+                particleCount: 5,
+                angle: 120,
+                spread: 55,
+                origin: { x: 1 },
+                colors: ['#0d6efd', '#198754', '#ffc107']
+            });
+
+            if (Date.now() < end) {
+                requestAnimationFrame(frame);
+            }
+        }());
     },
 
     // ============================================================

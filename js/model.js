@@ -11,7 +11,8 @@ export const Model = {
             tempoFocoMinutos: 25,
             tema: 'light',
             apiKey: '',
-            provider: 'gemini'
+            provider: 'gemini',
+            ultimoMorning: null
         }
     },
     chatMemory: {

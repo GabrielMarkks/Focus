@@ -1,47 +1,53 @@
-const CACHE_NAME = 'focus-coach-v1';
+const CACHE_NAME = 'focus-coach-v3'; // BUMP VERSION
 const ASSETS = [
-  './',
-  './index.html',
-  './css/style.css', // Verifique se o nome da sua pasta é 'css' ou 'styles'
-  './js/main.js',
-  './js/model.js',
-  './js/view.js',
-  './js/controller.js',
-  './js/ai.js',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',
-  'https://unpkg.com/@phosphor-icons/web',
-  'https://cdn.jsdelivr.net/npm/chart.js'
+    './',
+    './index.html',
+    './css/style.css',
+    './js/main.js',
+    './js/model.js',
+    './js/view.js',
+    './js/controller.js',
+    './js/ai.js',
+    './manifest.json', // Adicionado
+    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
+    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',
+    'https://unpkg.com/@phosphor-icons/web',
+    'https://cdn.jsdelivr.net/npm/chart.js',
+    'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js' // Adicionado explicitamente
 ];
 
-// 1. Instalação: Cacheia os arquivos estáticos
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-  );
+    // Força o SW a ativar imediatamente
+    self.skipWaiting();
+    e.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    );
 });
 
-// 2. Ativação: Limpa caches antigos se houver update
 self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      );
-    })
-  );
+    e.waitUntil(
+        caches.keys().then((keys) => {
+            return Promise.all(
+                keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+            );
+        })
+    );
+    // Garante que o SW controle a página imediatamente
+    return self.clients.claim();
 });
 
-// 3. Fetch: Intercepta as requisições (Cache First, Network Fallback)
 self.addEventListener('fetch', (e) => {
-  // Ignora requisições de API (AI) e Chrome Extensions
-  if (e.request.url.includes('generativelanguage') || e.request.url.includes('api.openai') || e.request.url.startsWith('chrome-extension')) {
-    return;
-  }
+    // Estratégia: Network First, falling back to Cache (Mais seguro para desenvolvimento)
+    // Mas para PWA offline puro, usamos Cache First. Vamos manter Cache First.
 
-  e.respondWith(
-    caches.match(e.request).then((response) => {
-      return response || fetch(e.request);
-    })
-  );
+    if (e.request.url.includes('http') && !e.request.url.includes('chrome-extension')) {
+        e.respondWith(
+            caches.match(e.request).then((response) => {
+                return response || fetch(e.request).catch(() => {
+                    // Se falhar tudo (offline e sem cache), retorna nada ou página de erro
+                    return null;
+                });
+            })
+        );
+    }
 });

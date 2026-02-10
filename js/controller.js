@@ -13,53 +13,122 @@ export const Controller = {
     pendingTask: null,
     inboxProcessId: null,
 
-    // ... dentro de Controller ...
+
 
     init() {
+        // 1. Tenta carregar os dados do LocalStorage
         if (Model.carregar()) {
-            this.refreshDash();
-            setTimeout(() => this.verificarZumbis(), 2000); // <--- NOVO: Verifica após 2s
+            this.refreshDash(); // Renderiza a tela inicial
+
+            // 2. Lógica de "Boas Vindas" e "Limpeza" (com pequeno delay para não travar a renderização)
+            setTimeout(() => {
+                const hoje = new Date().toLocaleDateString();
+                // Garante que o objeto config existe para evitar erros em usuários antigos
+                if (!Model.usuario.config) Model.usuario.config = {};
+
+                const ultimo = Model.usuario.config.ultimoMorning;
+
+                // Se a data do último acesso for diferente de hoje (ou se nunca acessou)
+                if (ultimo !== hoje) {
+                    this.abrirMorningSetup();
+                } else {
+                    // Se já fez o setup hoje, verifica se tem zumbis
+                    this.verificarZumbis();
+                }
+            }, 1000);
+
         } else {
+            // 3. Se não tem usuário, inicia o Tutorial
             View.atualizarOnboarding(1);
         }
+
+        // 4. Ativa os cliques e teclas
         this.setupListeners();
+    },
+
+    // --- MORNING SETUP (Funções Auxiliares) ---
+
+    abrirMorningSetup() {
+        // Preenche o nome para ficar pessoal
+        const nomeEl = document.getElementById('morning-name');
+        if (nomeEl) nomeEl.innerText = Model.usuario.nome || "Campeão";
+
+        View.toggleModal('modalMorning', 'show');
+
+        // Foca no input
+        setTimeout(() => {
+            const input = document.getElementById('input-morning-focus');
+            if (input) input.focus();
+        }, 500);
+    },
+
+    finalizarMorning() {
+        const foco = document.getElementById('input-morning-focus').value.trim();
+
+        if (foco) {
+            // Cria a tarefa automaticamente como "Fazer Agora" (Q1 - Urgente/Imp)
+            Model.addTarefa(foco, true, true, 'crescimento');
+            View.notify("Foco definido! Vamos pra cima! 🚀", "success");
+        }
+
+        // Salva que o setup de hoje está feito
+        this.salvarMorningFeito();
+    },
+
+    pularMorning() {
+        View.notify("Ok, direto para a ação.", "primary");
+        this.salvarMorningFeito();
+    },
+
+    salvarMorningFeito() {
+        Model.usuario.config.ultimoMorning = new Date().toLocaleDateString();
+        Model.salvar();
+
+        this.refreshDash();
+        View.toggleModal('modalMorning', 'hide');
+
+        // Só verifica zumbis DEPOIS de sair do modal de bom dia
+        setTimeout(() => this.verificarZumbis(), 2000);
     },
 
     // --- CAÇADOR DE ZUMBIS 🧟‍♂️ ---
     verificarZumbis() {
         const hoje = Date.now();
-        const LIMITE_DIAS = 3; // Critério para virar zumbi
+        const LIMITE_DIAS = 3;
         const msPorDia = 24 * 60 * 60 * 1000;
 
         const zumbis = Model.usuario.tarefas.filter(t => {
-            if (t.feita || !t.criadaEm) return false; // Ignora feitas ou sem data
+            if (t.feita || !t.criadaEm) return false;
             const idade = (hoje - t.criadaEm) / msPorDia;
             return idade >= LIMITE_DIAS;
         });
 
-        if (zumbis.length > 0) {
-            // Mostra um Toast Especial (Notificação)
+        // Só mostra se tiver zumbis E se o toast já não estiver na tela
+        if (zumbis.length > 0 && !document.getElementById('toast-zumbi')) {
             const html = `
-                <div class="toast show align-items-center text-bg-dark border-0 shadow-lg" role="alert" style="position: fixed; bottom: 20px; right: 20px; z-index: 10000;">
+                <div id="toast-zumbi" class="toast show align-items-center text-bg-dark border-0 shadow-lg" role="alert" style="position: fixed; bottom: 20px; right: 20px; z-index: 10000;">
                     <div class="d-flex">
                         <div class="toast-body">
-                            🧟‍♂️ <b>Alerta:</b> ${zumbis.length} Tarefas Zumbis detectadas!
+                            🧟‍♂️ <b>Alerta:</b> ${zumbis.length} Tarefas Zumbis!
                             <div class="mt-2 pt-2 border-top border-secondary">
                                 <button type="button" class="btn btn-sm btn-danger rounded-pill px-3" onclick="App.Controller.resolverZumbis()">
                                     Eliminar Zumbis
                                 </button>
-                                <button type="button" class="btn btn-sm btn-link text-white text-decoration-none ms-2" data-bs-dismiss="toast">Ignorar</button>
+                                <button type="button" class="btn btn-sm btn-link text-white text-decoration-none ms-2" onclick="document.getElementById('toast-zumbi').remove()">Ignorar</button>
                             </div>
                         </div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
                     </div>
                 </div>`;
-
             document.body.insertAdjacentHTML('beforeend', html);
         }
     },
 
     async resolverZumbis() {
+
+        // Remove o alerta da tela imediatamente
+        const toast = document.getElementById('toast-zumbi');
+        if (toast) toast.remove();
+
         // 1. Coleta os dados de novo
         const hoje = Date.now();
         const msPorDia = 24 * 60 * 60 * 1000;
@@ -253,6 +322,7 @@ export const Controller = {
     },
 
     // --- IA ---
+    // --- CORREÇÃO: IA ORGANIZER (Processa tudo) ---
     async organizarComIA() {
         const provider = Model.usuario.config.provider || 'gemini';
         const apiKey = Model.usuario.config.apiKey;
@@ -264,19 +334,31 @@ export const Controller = {
         const inboxTasks = Model.usuario.tarefas.filter(t => t.isInbox);
         if (inboxTasks.length === 0) return View.notify("Inbox vazia.", "primary");
 
-        View.toggleLoading(true, `IA ${provider.toUpperCase()} trabalhando...`);
+        View.toggleLoading(true, `Organizando ${inboxTasks.length} tarefas...`);
+
         try {
             const classified = await AI_Manager.classificar(provider, apiKey, inboxTasks);
-            classified.forEach(c => Model.atualizarTarefa(c.id, {
-                importante: c.importante,
-                urgente: c.urgente,
-                tipo: c.tipo,
-                isInbox: false
-            }));
-            View.render(Model.usuario);
-            View.notify(`${classified.length} tarefas organizadas!`, "success");
+
+            let mudou = 0;
+            classified.forEach(c => {
+                // Converte ambos para String para garantir o match
+                const original = Model.usuario.tarefas.find(t => String(t.id) === String(c.id));
+                if (original) {
+                    original.importante = c.importante;
+                    original.urgente = c.urgente;
+                    original.tipo = c.tipo;
+                    original.isInbox = false;
+                    mudou++;
+                }
+            });
+
+            Model.salvar();
+            this.refreshDash();
+            View.notify(`${mudou} tarefas organizadas com sucesso!`, "success");
+
         } catch (e) {
-            alert(`Erro IA: ${e.message}`);
+            console.error(e); // Para ver o erro real no console
+            View.notify(`Erro IA: Tente novamente.`, "error");
         } finally {
             View.toggleLoading(false);
         }
@@ -366,34 +448,66 @@ export const Controller = {
     },
     processarComandosIA(resposta, bubbleId) {
         let textoFinal = resposta;
+        let acaoExecutada = false;
 
-        // Comando ADD
-        const addMatch = resposta.match(/\[ADD: (.*?)\]/);
-        if (addMatch) {
-            Model.addTarefa(addMatch[1], false, false, 'manutencao', true);
-            this.refreshDash(); // Atualiza paineis
-            View.notify(`IA criou: "${addMatch[1]}"`, "success");
-            textoFinal = textoFinal.replace(addMatch[0], '');
+        // 1. Processa MÚLTIPLOS comandos ADD (Regex global)
+        // A IA pode mandar: [ADD: Leite] [ADD: Pão]
+        const addMatches = [...resposta.matchAll(/\[ADD: (.*?)\]/g)];
+        if (addMatches.length > 0) {
+            addMatches.forEach(match => {
+                const tarefaTexto = match[1];
+                // Cria na Inbox
+                Model.addTarefa(tarefaTexto, false, false, 'manutencao', true);
+                textoFinal = textoFinal.replace(match[0], ''); // Remove o comando do texto
+            });
+            View.render(Model.usuario);
+            View.notify(`Adicionei ${addMatches.length} tarefas na Inbox!`, "success");
+            acaoExecutada = true;
         }
 
-        // Comando SET_GOAL (NOVO!)
+        // 2. Processa SET_GOAL
         const goalMatch = resposta.match(/\[SET_GOAL: (.*?)\]/);
         if (goalMatch) {
             const novaMeta = goalMatch[1];
             Model.atualizarUsuario('metaSemanal', novaMeta);
             this.refreshDash();
-            View.notify(`Meta da Semana atualizada! 🎯`, "success");
+            View.notify(`Meta definida: ${novaMeta}`, "success");
             textoFinal = textoFinal.replace(goalMatch[0], '');
+            acaoExecutada = true;
         }
 
-        // Comando ORGANIZE
-        if (resposta.includes('[ORGANIZE]')) {
-            this.organizarComIA();
-            textoFinal = textoFinal.replace('[ORGANIZE]', '');
+        // 3. Processa REMOVE (Zumbis e Chat)
+        const remMatch = resposta.match(/\[REMOVE: (.*?)\]/);
+        if (remMatch) {
+            const termo = remMatch[1].trim().toLowerCase();
+
+            // Busca Inteligente: Tenta encontrar qualquer tarefa que CONTENHA o termo
+            const task = Model.usuario.tarefas.find(t =>
+                t.texto.toLowerCase().includes(termo)
+            );
+
+            if (task) {
+                Model.delTarefa(task.id);
+                this.refreshDash();
+                View.notify(`🗑️ Tarefa "${task.texto}" apagada!`, "success");
+            } else {
+                // Se não achar exato, tenta achar uma palavra chave
+                View.notify(`Não encontrei a tarefa "${remMatch[1]}" para apagar.`, "warning");
+            }
+            textoFinal = textoFinal.replace(remMatch[0], '');
+            acaoExecutada = true;
         }
 
+        // 4. Se a IA ficou muda (só mandou comandos), adiciona feedback
+        if (textoFinal.trim().length === 0 && acaoExecutada) {
+            textoFinal = "✅ Feito! Atualizei seu painel.";
+        }
+
+        // Atualiza UI
         const bubble = document.getElementById(bubbleId);
         if (bubble) bubble.innerHTML = View.formatarTextoIA(textoFinal);
+
+        // Salva histórico limpo
         Model.pushChatMessage('ai', textoFinal);
     },
 
@@ -440,6 +554,12 @@ export const Controller = {
     toggleHabit(id) {
         Model.toggleHabito(id);
         View.renderHabits(Model.usuario);
+
+        // Verifica se acabou de marcar como feito (se tem streak > 0 e concluidoHoje true)
+        const habito = Model.usuario.habitos.find(h => h.id === id);
+        if (habito && habito.concluidoHoje) {
+            View.playReward();
+        }
     },
     delHabit(id) {
         if (confirm("Remover?")) {
@@ -526,19 +646,51 @@ export const Controller = {
         const btn = document.getElementById('btn-pausa');
         if (btn) btn.innerText = Model.timer.ativo ? 'Pausar' : 'Retomar';
     },
+
+
+    // --- CORREÇÃO: TIMER E CONCLUSÃO (Botões Trocados) ---
     concluirFoco() {
+        // 1. Para o timer e o som
         clearInterval(Model.timer.intervaloId);
         View.stopSound();
-        if (confirm("Concluiu?")) {
-            const inv = Math.ceil((Model.timer.tempoPadrao - Model.timer.tempoRestante) / 60);
-            Model.concluirTarefa(Model.timer.tarefaAtualId, inv);
-        }
-        this.refreshDash();
+        Model.timer.ativo = false;
+
+        // 2. Tira a tela preta do foco IMEDIATAMENTE
+        // Isso evita que o modal fique preso atrás dela, mesmo sem o CSS
+        document.getElementById('view-focus').classList.add('d-none');
+        document.getElementById('nav-principal').classList.remove('d-none'); // Volta a navbar
+        document.getElementById('view-dashboard').classList.remove('d-none'); // Volta o dash
+
+        // 3. Abre o modal de confirmação
+        View.toggleModal('modalConclusao', 'show');
     },
+
+    confirmarConclusaoReal() {
+        View.toggleModal('modalConclusao', 'hide');
+
+        // Calcula tempo (mínimo 1 minuto)
+        const tempoGasto = Model.timer.tempoPadrao - Model.timer.tempoRestante;
+        const inv = Math.max(1, Math.ceil(tempoGasto / 60));
+
+        // Salva e Move para Histórico
+        Model.concluirTarefa(Model.timer.tarefaAtualId, inv);
+
+        // Atualiza a tela (Isso remove a tarefa da lista visualmente)
+        this.refreshDash();
+
+        // Festa!
+        setTimeout(() => {
+            View.playReward();
+            View.notify(`VITÓRIA! +${inv} min de XP! 🚀`, "success");
+        }, 500);
+    },
+
+
     cancelarFoco() {
+        // Apenas sai sem salvar nada
         clearInterval(Model.timer.intervaloId);
         View.stopSound();
-        this.refreshDash();
+        View.toDash();
     },
 
     // --- Brain Dump e Configs ---
@@ -633,16 +785,29 @@ export const Controller = {
         View.notify("Copiado!");
     },
     confirmarShutdown() {
-        if (confirm("Encerrar o dia? Tarefas pendentes serão movidas para amanhã.")) {
-            const resultado = Model.encerrarDia();
-            this.refreshDash();
-            View.toggleModal('modalShutdown', 'hide');
+        // Não usa confirm() nativo. O usuário já está no modal e clicou no botão vermelho.
 
-            if (resultado.migradas > 0) {
-                View.notify(`${resultado.migradas} tarefas migradas para amanhã. Foco! 🗓️`, "warning");
-            } else {
-                View.notify("Dia limpo! Bom descanso! 🌙", "success");
-            }
+        // 1. Executa a lógica
+        const resultado = Model.encerrarDia();
+
+        // 2. Fecha o modal
+        View.toggleModal('modalShutdown', 'hide');
+
+        // 3. Feedback Visual e Limpeza
+        this.refreshDash();
+
+        if (resultado.migradas > 0) {
+            View.notify(`${resultado.migradas} tarefas migradas para amanhã.`, "warning");
+        } else {
+            View.notify("Dia finalizado com sucesso! Bom descanso! 🌙", "success");
         }
+
+        // 4. (Opcional) Zera visualmente os contadores AGORA para dar sensação de limpeza
+        // Nota: O Model.getMinHoje() pega a data real. Se ainda é hoje, ele mostraria os dados.
+        // Vamos forçar um "Visual Reset" manipulando o DOM diretamente só para efeito visual
+        document.getElementById('display-minutos-foco').innerText = "0";
+        document.getElementById('review-tarefas-feitas').innerText = "0";
+        // As tarefas pendentes continuam lá (migradas), mas as feitas somem do histórico visual imediato
+        document.getElementById('lista-concluidas').innerHTML = '';
     }
 };

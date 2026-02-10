@@ -12,6 +12,7 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0d6efd">
     <link rel="apple-touch-icon" href="assets/icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 </head>
 
 <body class="bg-body-tertiary">
@@ -804,9 +805,100 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalConclusao" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4 text-center overflow-hidden">
+                <div class="modal-body p-5 bg-success bg-opacity-10">
+                    <div class="mb-3">
+                        <div class="bg-success text-white rounded-circle d-inline-flex p-3 shadow-sm">
+                            <i class="ph ph-check fs-1"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold text-success mb-2">Missão Cumprida?</h3>
+                    <p class="text-muted mb-4">Você focou de verdade nessa tarefa?</p>
+                    
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <button class="btn btn-light w-100 py-3 rounded-pill fw-bold text-muted" data-bs-dismiss="modal">
+                                Ainda não
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow-sm hover-scale" onclick="App.Controller.confirmarConclusaoReal()">
+                                SIM, CONCLUIR! 🎉
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalConclusao" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4 text-center overflow-hidden">
+                <div class="modal-body p-5 bg-success bg-opacity-10">
+                    <div class="mb-3">
+                        <div class="bg-success text-white rounded-circle d-inline-flex p-3 shadow-sm">
+                            <i class="ph ph-check fs-1"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold text-success mb-2">Missão Cumprida?</h3>
+                    <p class="text-muted mb-4">Você focou de verdade nessa tarefa?</p>
+                    
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <button class="btn btn-light w-100 py-3 rounded-pill fw-bold text-muted" data-bs-dismiss="modal" onclick="App.View.toDash()">
+                                Não, cancelei
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow-sm hover-scale" onclick="App.Controller.confirmarConclusaoReal()">
+                                SIM, FEITO! 🎉
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalMorning" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                <div class="modal-body p-5 text-center text-white"
+                    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+
+                    <i class="ph ph-sun-horizon fs-1 mb-3 text-warning"></i>
+
+                    <h1 class="fw-bold mb-2">Bom dia, <span id="morning-name">Campeão</span>! ☀️</h1>
+                    <p class="opacity-75 fs-5 mb-4">Qual é a sua vitória obrigatória para hoje?</p>
+
+                    <div class="card border-0 bg-white text-dark shadow-sm p-4 rounded-4 mx-auto"
+                        style="max-width: 500px;">
+                        <textarea id="input-morning-focus"
+                            class="form-control border-0 bg-light fs-4 fw-bold text-center" rows="2"
+                            placeholder="Ex: Finalizar a Landing Page..."></textarea>
+                    </div>
+
+                    <button class="btn btn-warning btn-lg rounded-pill px-5 fw-bold mt-4 shadow-sm text-dark"
+                        onclick="App.Controller.finalizarMorning()">
+                        🚀 Iniciar o Dia
+                    </button>
+
+                    <div class="mt-3">
+                        <small class="opacity-50 text-white" style="cursor: pointer;"
+                            onclick="App.Controller.pularMorning()">Pular por hoje</small>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="js/main.js"></script>
-</body>
 </body>
 
 </html>
