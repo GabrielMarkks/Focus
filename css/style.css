@@ -363,3 +363,69 @@ body {
 .modal-backdrop {
     z-index: 9999 !important;
 }
+
+
+/* --- TEMAS PERSONALIZADOS --- */
+
+/* TEMA CYBERPUNK (Foco Agressivo) */
+[data-bs-theme="cyberpunk"] {
+    --bs-body-bg: #050505;
+    --bs-body-color: #00ff41;
+    --bs-primary: #00d2ff;
+    --bs-primary-rgb: 0, 210, 255;
+    --bs-success: #00ff41;
+    --bs-warning: #fcee0a;
+    --bs-danger: #ff003c;
+    --bs-secondary: #2d2d2d;
+    --bs-tertiary-bg: #0a0a0a;
+    --bs-card-bg: #111;
+    --bs-border-color: #333;
+}
+[data-bs-theme="cyberpunk"] .card {
+    border: 1px solid var(--bs-primary);
+    box-shadow: 0 0 10px rgba(0, 210, 255, 0.2) !important;
+}
+[data-bs-theme="cyberpunk"] .btn-primary {
+    background-color: var(--bs-primary);
+    border: none;
+    color: #000;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* TEMA FOREST (Foco Calmo) */
+[data-bs-theme="forest"] {
+    --bs-body-bg: #f4f7f2;
+    --bs-body-color: #2c3e2e;
+    --bs-primary: #4a7c59; /* Verde Folha */
+    --bs-primary-rgb: 74, 124, 89;
+    --bs-success: #8db580;
+    --bs-warning: #e6af2e;
+    --bs-danger: #a44a3f;
+    --bs-secondary: #9da39a;
+    --bs-tertiary-bg: #eaf0e6;
+    --bs-card-bg: #ffffff;
+}
+[data-bs-theme="forest"] .navbar-glass {
+    background: rgba(74, 124, 89, 0.1);
+    backdrop-filter: blur(10px);
+}
+[data-bs-theme="forest"] .btn-primary {
+    border-radius: 8px; /* Menos redondo */
+}
+
+/* TEMA DRACULA (Clássico Dev) */
+[data-bs-theme="dracula"] {
+    --bs-body-bg: #282a36;
+    --bs-body-color: #f8f8f2;
+    --bs-primary: #bd93f9; /* Roxo */
+    --bs-primary-rgb: 189, 147, 249;
+    --bs-success: #50fa7b;
+    --bs-warning: #f1fa8c;
+    --bs-danger: #ff5555;
+    --bs-info: #8be9fd;
+    --bs-tertiary-bg: #44475a;
+    --bs-card-bg: #343746; /* Um pouco mais claro que o fundo */
+    --bs-border-color: #6272a4;
+}

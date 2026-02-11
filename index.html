@@ -73,16 +73,12 @@
 
         <section id="view-onboarding" class="row justify-content-center min-vh-100 align-items-center">
             <div class="col-md-6 col-lg-5">
-
                 <div class="card onboarding-card p-0">
-
                     <div class="progress" style="height: 6px; border-radius: 0;">
                         <div id="onboarding-progress" class="progress-bar bg-primary transition-width"
                             style="width: 33%"></div>
                     </div>
-
                     <div class="card-body p-5 text-center">
-
                         <div id="step-1" class="step-container animate-fade-in">
                             <div class="mb-4">
                                 <div class="bg-primary bg-opacity-10 d-inline-flex p-4 rounded-circle icon-pulse">
@@ -91,12 +87,10 @@
                             </div>
                             <h2 class="h3 fw-bold mb-2">Bem-vindo ao Foco.</h2>
                             <p class="text-muted mb-4">Vamos personalizar seu workspace. Como devemos te chamar?</p>
-
                             <div class="mb-4">
                                 <input type="text" id="input-name" class="form-control input-onboarding"
                                     placeholder="Seu Nome" autocomplete="off">
                             </div>
-
                             <button onclick="App.Controller.proximoPasso(2)"
                                 class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm">
                                 Continuar <i class="ph ph-arrow-right ms-2"></i>
@@ -111,12 +105,10 @@
                             </div>
                             <h2 class="h3 fw-bold mb-2">Seu Foco Principal</h2>
                             <p class="text-muted mb-4">Qual é o seu objetivo número 1 para hoje?</p>
-
                             <div class="mb-4">
                                 <textarea id="input-proposito" class="form-control input-onboarding" rows="1"
                                     placeholder="Ex: Finalizar o projeto X..." style="resize: none;"></textarea>
                             </div>
-
                             <button onclick="App.Controller.proximoPasso(3)"
                                 class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm">
                                 Definir Foco <i class="ph ph-check ms-2"></i>
@@ -133,12 +125,10 @@
                             </div>
                             <h2 class="h3 fw-bold mb-2">Sua Identidade</h2>
                             <p class="text-muted mb-4">Quem você precisa ser hoje? (Papéis)</p>
-
                             <div class="mb-4">
                                 <input type="text" id="input-papeis" class="form-control input-onboarding"
                                     placeholder="Ex: Gestor, Criativo, Pai">
                             </div>
-
                             <button onclick="App.Controller.finalizarOnboarding()"
                                 class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow-lg hover-scale">
                                 Iniciar Sistema 🚀
@@ -146,22 +136,18 @@
                             <button onclick="App.Controller.voltarPasso(2)"
                                 class="btn btn-link text-muted mt-2 text-decoration-none small">Voltar</button>
                         </div>
-
                     </div>
                 </div>
-
                 <p class="text-center text-muted mt-4 small opacity-50">Focus Coach Pro © 2025</p>
             </div>
         </section>
 
         <section id="view-dashboard" class="d-none animate-fade-in">
-
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card border-0 shadow-sm bg-dark text-white overflow-hidden rounded-4">
                         <div
                             class="card-body p-4 d-flex flex-wrap align-items-center justify-content-between position-relative">
-
                             <div class="z-2 mb-3 mb-md-0">
                                 <h6 class="text-white-50 text-uppercase fw-bold small mb-1">Produtividade Hoje</h6>
                                 <h2 class="fw-bold mb-0 d-flex align-items-center gap-2">
@@ -175,14 +161,12 @@
                                     </span>
                                 </div>
                             </div>
-
                             <div class="z-2">
                                 <button class="btn btn-sm btn-outline-light rounded-pill px-4"
                                     onclick="App.View.alternarHistorico()">
                                     Ver Concluídas
                                 </button>
                             </div>
-
                             <div id="barra-dia-fundo"
                                 style="position: absolute; left: 0; top: 0; height: 100%; width: 0%; background: linear-gradient(90deg, rgba(13,110,253,0.3) 0%, rgba(13,110,253,0) 100%); transition: width 1s;">
                             </div>
@@ -352,295 +336,6 @@
             </div>
         </section>
 
-        <div class="modal fade" id="modalBrainDump" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content border-0 shadow rounded-4">
-                    <div class="modal-body p-4 text-center">
-                        <div class="mb-3 text-info">
-                            <i class="ph ph-brain fs-1"></i>
-                        </div>
-                        <h4 class="fw-bold mb-2">Descarrego Mental</h4>
-                        <div class="input-group mb-3">
-                            <input type="text" id="input-brain-dump" class="form-control form-control-lg"
-                                placeholder="O que está pendente?">
-                            <button id="btn-mic-dump" class="btn btn-outline-secondary" type="button"
-                                onclick="App.Controller.toggleVoice('input-brain-dump', 'btn-mic-dump')">
-                                <i class="ph ph-microphone"></i>
-                            </button>
-                        </div>
-                        <button class="btn btn-info text-white w-100 rounded-pill fw-bold"
-                            onclick="App.Controller.adicionarBrainDump()">Salvar na Inbox
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal fade" id="modalEnergia" tabindex="-1" data-bs-backdrop="static">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content border-0 shadow rounded-4 text-center">
-                    <div class="modal-body p-5">
-                        <h3 class="fw-bold mb-2">Energia? 🔋</h3>
-                        <div class="d-grid gap-3"><button onclick="App.Controller.confirmarFoco('alta')"
-                                class="btn btn-outline-success btn-lg rounded-pill p-3 text-start"><b>Alta</b> (50
-                                min)</button><button onclick="App.Controller.confirmarFoco('media')"
-                                class="btn btn-outline-primary btn-lg rounded-pill p-3 text-start"><b>Média</b> (25
-                                min)</button><button onclick="App.Controller.confirmarFoco('baixa')"
-                                class="btn btn-outline-secondary btn-lg rounded-pill p-3 text-start"><b>Baixa</b> (15
-                                min)</button></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal fade" id="modalShutdown" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content border-0 shadow-lg rounded-4">
-                    <div class="modal-header bg-dark text-white border-0">
-                        <h5 class="modal-title fw-bold">Encerramento</h5><button type="button"
-                            class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body p-4">
-                        <div class="text-center mb-4">
-                            <h2 class="display-4 fw-bold text-primary mb-0" id="shutdown-score">0</h2>
-                            <p>Pontos de Foco</p>
-                        </div>
-                        <div class="card bg-body-tertiary border-0 mb-4 position-relative">
-                            <div class="card-body font-monospace small" id="shutdown-resumo-texto"
-                                style="white-space: pre-line; max-height: 200px; overflow-y: auto;">...</div><button
-                                class="btn btn-sm btn-light position-absolute top-0 end-0 m-2 shadow-sm"
-                                onclick="App.Controller.copiarResumo()"><i class="ph ph-copy"></i></button>
-                        </div>
-                        <div class="d-grid gap-2"><button class="btn btn-danger fw-bold py-3"
-                                onclick="App.Controller.confirmarShutdown()">Finalizar o Dia</button></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal fade" id="modalGatekeeper" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content border-0 shadow-lg rounded-4 border-start border-5 border-warning">
-                    <div class="modal-body p-4 text-center">
-                        <div class="mb-4"><i class="ph ph-shield-warning fs-1 text-warning"></i></div>
-                        <h4 class="fw-bold">Calma aí.</h4>
-                        <p class="text-muted mb-4">Você já tem 3 tarefas de Crescimento hoje.</p>
-                        <div class="card bg-body-tertiary border-0 mb-4 text-start">
-                            <div class="card-body"><small class="text-uppercase fw-bold text-muted"
-                                    style="font-size: 0.7rem;">Seu Propósito:</small>
-                                <p class="fw-bold mb-0 fst-italic" id="gatekeeper-proposito">...</p>
-                            </div>
-                        </div>
-                        <p class="mb-4 fw-medium">Essa tarefa <span id="gatekeeper-tarefa"
-                                class="text-primary fw-bold">...</span> é realmente vital?</p>
-                        <div class="d-grid gap-2"><button class="btn btn-outline-secondary"
-                                onclick="App.Controller.rebaixarParaManutenção()">Mover para Manutenção</button><button
-                                class="btn btn-primary fw-bold" onclick="App.Controller.forcarAdicao()">Sim, é
-                                Vital</button></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal fade" id="modalMeta" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                    <div class="modal-header border-0 bg-primary bg-opacity-10 pb-3">
-                        <h5 class="modal-title fw-bold text-primary d-flex align-items-center gap-2">
-                            <i class="ph ph-flag-banner"></i> Foco da Semana
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-
-                    <div class="modal-body p-4">
-                        <label for="input-meta-semanal" class="form-label text-muted small fw-bold text-uppercase">Sua
-                            Prioridade #1</label>
-                        <textarea id="input-meta-semanal" class="form-control bg-body-tertiary border-0 fs-5 fw-medium"
-                            rows="2" placeholder="Ex: Lançar o Site v1..."></textarea>
-                        <div class="form-text mt-2">
-                            💡 Escolha uma única grande vitória para esta semana.
-                        </div>
-                    </div>
-
-                    <div class="modal-footer border-0 p-3 bg-body-tertiary">
-                        <button type="button" class="btn btn-link text-muted text-decoration-none"
-                            data-bs-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold"
-                            onclick="App.Controller.salvarMetaSemanal()">
-                            <i class="ph ph-check me-1"></i> Definir Meta
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal fade" id="modalProcessarInbox" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content border-0 shadow rounded-4">
-                    <div class="modal-header border-0">
-                        <h5 class="modal-title fw-bold">Organizar</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body p-4 text-center">
-                        <p class="lead fw-bold mb-4" id="inbox-task-text">...</p>
-                        <p class="small text-muted text-uppercase fw-bold mb-3">Para onde isso vai?</p>
-
-                        <div class="row g-2 mb-4">
-                            <div class="col-6"><button onclick="App.Controller.confirmarProcessamento(true, true)"
-                                    class="btn btn-outline-danger w-100 py-3 h-100 d-flex flex-column align-items-center gap-2"><i
-                                        class="ph ph-fire-fill fs-3"></i><span>Fazer Agora</span></button></div>
-                            <div class="col-6"><button onclick="App.Controller.confirmarProcessamento(true, false)"
-                                    class="btn btn-outline-primary w-100 py-3 h-100 d-flex flex-column align-items-center gap-2"><i
-                                        class="ph ph-diamond-fill fs-3"></i><span>Deep Work</span></button></div>
-                            <div class="col-6"><button onclick="App.Controller.confirmarProcessamento(false, true)"
-                                    class="btn btn-outline-warning w-100 py-3 h-100 d-flex flex-column align-items-center gap-2 text-dark"><i
-                                        class="ph ph-users-three-fill fs-3"></i><span>Delegar</span></button></div>
-                            <div class="col-6"><button onclick="App.Controller.confirmarProcessamento(false, false)"
-                                    class="btn btn-outline-secondary w-100 py-3 h-100 d-flex flex-column align-items-center gap-2"><i
-                                        class="ph ph-trash-fill fs-3"></i><span>Eliminar</span></button></div>
-                        </div>
-
-                        <div class="btn-group w-100" role="group">
-                            <input type="radio" class="btn-check" name="procTipo" id="proc-manut" value="manutencao"
-                                checked>
-                            <label class="btn btn-outline-secondary" for="proc-manut">🔧 Rotina</label>
-                            <input type="radio" class="btn-check" name="procTipo" id="proc-cresc" value="crescimento">
-                            <label class="btn btn-outline-success" for="proc-cresc">🚀 Meta</label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal fade" id="modalRelatorio" tabindex="-1">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content border-0 shadow rounded-4">
-                    <div class="modal-header bg-primary text-white border-0 rounded-top-4">
-                        <h5 class="modal-title fw-bold">Analytics</h5><button type="button"
-                            class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body p-4">
-                        <div class="row text-center mb-4 g-2">
-                            <div class="col-4">
-                                <div class="p-3 bg-body-tertiary rounded-4">
-                                    <h3 class="fw-bold text-primary mb-0" id="review-total-minutos">0</h3>
-                                    <small class="text-muted text-uppercase fw-bold" style="font-size: 0.65rem;">Minutos
-                                        XP</small>
-                                </div>
-                            </div>
-                            <div class="col-4">
-                                <div class="p-3 bg-body-tertiary rounded-4">
-                                    <h3 class="fw-bold text-success mb-0" id="review-tarefas-feitas">0</h3>
-                                    <small class="text-muted text-uppercase fw-bold"
-                                        style="font-size: 0.65rem;">Tarefas</small>
-                                </div>
-                            </div>
-                            <div class="col-4">
-                                <div class="p-3 bg-body-tertiary rounded-4">
-                                    <h3 class="fw-bold text-warning mb-0" id="review-streak">0</h3>
-                                    <small class="text-muted text-uppercase fw-bold"
-                                        style="font-size: 0.65rem;">Streak</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="review-feedback" class="mb-3 text-center small text-muted"></div>
-
-                        <div class="row g-3 mb-3">
-                            <div class="col-6"><canvas id="graficoFoco"></canvas></div>
-                            <div class="col-6"><canvas id="graficoQualidade"></canvas></div>
-                        </div>
-
-                        <div id="box-feedback-ai"
-                            class="bg-primary bg-opacity-10 p-3 rounded-3 border border-primary border-opacity-25 d-none">
-                            <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-bold">
-                                <i class="ph ph-sparkle-fill"></i> Análise do Coach
-                            </div>
-                            <p id="texto-feedback-ai" class="mb-0 small text-body" style="line-height: 1.6;">
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="modal-footer border-0 p-3 pt-0 justify-content-center">
-                        <button type="button" class="btn btn-outline-primary rounded-pill px-4"
-                            onclick="App.Controller.gerarAnaliseIA()" id="btn-analise-ia">
-                            🔮 Analisar Performance
-                        </button>
-                        <button type="button" class="btn btn-dark rounded-pill px-4"
-                            data-bs-dismiss="modal">Fechar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal fade" id="modalConfig" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content border-0 shadow rounded-4">
-                    <div class="modal-header">
-                        <h5 class="modal-title fw-bold">Configurações</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body p-4">
-
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-muted">TEMPO PADRÃO</label>
-                            <select id="config-tempo" class="form-select"
-                                onchange="App.Controller.salvarConfiguracoes()">
-                                <option value="25">25 min (Pomodoro)</option>
-                                <option value="50">50 min (Deep Work)</option>
-                            </select>
-                        </div>
-
-                        <hr>
-
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-muted">INTELIGÊNCIA ARTIFICIAL</label>
-
-                            <div class="input-group mb-2">
-                                <span class="input-group-text"><i class="ph ph-robot"></i></span>
-                                <select id="config-provider" class="form-select"
-                                    onchange="App.Controller.atualizarLinkKey()">
-                                    <option value="gemini">Google Gemini (Flash 1.5)</option>
-                                    <option value="openai">OpenAI (GPT-4o Mini)</option>
-                                    <option value="groq">Groq (Llama 3 - Grátis)</option>
-                                </select>
-                            </div>
-
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="ph ph-key"></i></span>
-                                <input type="password" id="config-apikey" class="form-control"
-                                    placeholder="Cole sua API Key aqui...">
-                                <button class="btn btn-primary"
-                                    onclick="App.Controller.salvarConfiguracoes(true)">Salvar</button>
-                            </div>
-
-                            <div class="mt-2 text-end">
-                                <a id="link-obter-key" href="https://aistudio.google.com/app/apikey" target="_blank"
-                                    class="badge bg-primary-subtle text-primary text-decoration-none">Obter Chave Gemini
-                                    ↗</a>
-                            </div>
-                        </div>
-
-                        <hr>
-
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-dark btn-sm" onclick="App.Controller.baixarBackup()">Baixar
-                                Backup</button>
-                            <div class="input-group input-group-sm">
-                                <input type="file" class="form-control" id="arquivo-backup" accept=".json">
-                                <button class="btn btn-outline-warning"
-                                    onclick="App.Controller.restaurarBackup()">Restaurar</button>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-center">
-                            <button class="btn btn-link text-danger btn-sm p-0 text-decoration-none"
-                                onclick="App.Controller.resetarDados()">Resetar Tudo</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <section id="view-focus"
             class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center bg-dark text-white"
             style="z-index: 2000;">
@@ -677,7 +372,8 @@
         </section>
     </div>
 
-    <div class="offcanvas offcanvas-end rounded-start-4 border-0" tabindex="-1" id="offcanvasHabitos">
+    <div class="offcanvas offcanvas-end rounded-start-4 border-0" tabindex="-1" id="offcanvasHabitos"
+        style="z-index: 10050;">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title fw-bold">
                 <i class="ph ph-arrows-clockwise me-2 text-success"></i>Rituais
@@ -709,7 +405,7 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modalHabito" tabindex="-1">
+    <div class="modal fade" id="modalHabito" tabindex="-1" style="z-index: 10050;">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow rounded-4">
                 <div class="modal-header border-0 pb-0">
@@ -768,7 +464,7 @@
         <i class="ph ph-chat-circle-dots"></i>
     </button>
 
-    <div class="modal fade" id="modalChat" tabindex="-1">
+    <div class="modal fade" id="modalChat" tabindex="-1" style="z-index: 10050;">
         <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg rounded-4">
                 <div class="modal-header bg-primary text-white border-0">
@@ -805,36 +501,294 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modalConclusao" tabindex="-1">
+    <div class="modal fade" id="modalBrainDump" tabindex="-1" style="z-index: 10050;">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg rounded-4 text-center overflow-hidden">
-                <div class="modal-body p-5 bg-success bg-opacity-10">
-                    <div class="mb-3">
-                        <div class="bg-success text-white rounded-circle d-inline-flex p-3 shadow-sm">
-                            <i class="ph ph-check fs-1"></i>
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-body p-4 text-center">
+                    <div class="mb-3 text-info">
+                        <i class="ph ph-brain fs-1"></i>
+                    </div>
+                    <h4 class="fw-bold mb-2">Descarrego Mental</h4>
+                    <div class="input-group mb-3">
+                        <input type="text" id="input-brain-dump" class="form-control form-control-lg"
+                            placeholder="O que está pendente?">
+                        <button id="btn-mic-dump" class="btn btn-outline-secondary" type="button"
+                            onclick="App.Controller.toggleVoice('input-brain-dump', 'btn-mic-dump')">
+                            <i class="ph ph-microphone"></i>
+                        </button>
+                    </div>
+                    <button class="btn btn-info text-white w-100 rounded-pill fw-bold"
+                        onclick="App.Controller.adicionarBrainDump()">Salvar na Inbox
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalEnergia" tabindex="-1" data-bs-backdrop="static" style="z-index: 10050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4 text-center">
+                <div class="modal-body p-5">
+                    <h3 class="fw-bold mb-2">Energia? 🔋</h3>
+                    <div class="d-grid gap-3"><button onclick="App.Controller.confirmarFoco('alta')"
+                            class="btn btn-outline-success btn-lg rounded-pill p-3 text-start"><b>Alta</b> (50
+                            min)</button><button onclick="App.Controller.confirmarFoco('media')"
+                            class="btn btn-outline-primary btn-lg rounded-pill p-3 text-start"><b>Média</b> (25
+                            min)</button><button onclick="App.Controller.confirmarFoco('baixa')"
+                            class="btn btn-outline-secondary btn-lg rounded-pill p-3 text-start"><b>Baixa</b> (15
+                            min)</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalShutdown" tabindex="-1" style="z-index: 10050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header bg-dark text-white border-0">
+                    <h5 class="modal-title fw-bold">Encerramento</h5><button type="button"
+                        class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-4">
+                        <h2 class="display-4 fw-bold text-primary mb-0" id="shutdown-score">0</h2>
+                        <p>Pontos de Foco</p>
+                    </div>
+                    <div class="card bg-body-tertiary border-0 mb-4 position-relative">
+                        <div class="card-body font-monospace small" id="shutdown-resumo-texto"
+                            style="white-space: pre-line; max-height: 200px; overflow-y: auto;">...</div><button
+                            class="btn btn-sm btn-light position-absolute top-0 end-0 m-2 shadow-sm"
+                            onclick="App.Controller.copiarResumo()"><i class="ph ph-copy"></i></button>
+                    </div>
+                    <div class="d-grid gap-2"><button class="btn btn-danger fw-bold py-3"
+                            onclick="App.Controller.confirmarShutdown()">Finalizar o Dia</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalGatekeeper" tabindex="-1" style="z-index: 10050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4 border-start border-5 border-warning">
+                <div class="modal-body p-4 text-center">
+                    <div class="mb-4"><i class="ph ph-shield-warning fs-1 text-warning"></i></div>
+                    <h4 class="fw-bold">Calma aí.</h4>
+                    <p class="text-muted mb-4">Você já tem 3 tarefas de Crescimento hoje.</p>
+                    <div class="card bg-body-tertiary border-0 mb-4 text-start">
+                        <div class="card-body"><small class="text-uppercase fw-bold text-muted"
+                                style="font-size: 0.7rem;">Seu Propósito:</small>
+                            <p class="fw-bold mb-0 fst-italic" id="gatekeeper-proposito">...</p>
                         </div>
                     </div>
-                    <h3 class="fw-bold text-success mb-2">Missão Cumprida?</h3>
-                    <p class="text-muted mb-4">Você focou de verdade nessa tarefa?</p>
-                    
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <button class="btn btn-light w-100 py-3 rounded-pill fw-bold text-muted" data-bs-dismiss="modal">
-                                Ainda não
-                            </button>
-                        </div>
-                        <div class="col-6">
-                            <button class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow-sm hover-scale" onclick="App.Controller.confirmarConclusaoReal()">
-                                SIM, CONCLUIR! 🎉
-                            </button>
-                        </div>
+                    <p class="mb-4 fw-medium">Essa tarefa <span id="gatekeeper-tarefa"
+                            class="text-primary fw-bold">...</span> é realmente vital?</p>
+                    <div class="d-grid gap-2"><button class="btn btn-outline-secondary"
+                            onclick="App.Controller.rebaixarParaManutenção()">Mover para Manutenção</button><button
+                            class="btn btn-primary fw-bold" onclick="App.Controller.forcarAdicao()">Sim, é
+                            Vital</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalMeta" tabindex="-1" aria-hidden="true" style="z-index: 10050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header border-0 bg-primary bg-opacity-10 pb-3">
+                    <h5 class="modal-title fw-bold text-primary d-flex align-items-center gap-2">
+                        <i class="ph ph-flag-banner"></i> Foco da Semana
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <label for="input-meta-semanal" class="form-label text-muted small fw-bold text-uppercase">Sua
+                        Prioridade #1</label>
+                    <textarea id="input-meta-semanal" class="form-control bg-body-tertiary border-0 fs-5 fw-medium"
+                        rows="2" placeholder="Ex: Lançar o Site v1..."></textarea>
+                    <div class="form-text mt-2">
+                        💡 Escolha uma única grande vitória para esta semana.
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 p-3 bg-body-tertiary">
+                    <button type="button" class="btn btn-link text-muted text-decoration-none"
+                        data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold"
+                        onclick="App.Controller.salvarMetaSemanal()">
+                        <i class="ph ph-check me-1"></i> Definir Meta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalProcessarInbox" tabindex="-1" style="z-index: 10050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">Organizar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <p class="lead fw-bold mb-4" id="inbox-task-text">...</p>
+                    <p class="small text-muted text-uppercase fw-bold mb-3">Para onde isso vai?</p>
+
+                    <div class="row g-2 mb-4">
+                        <div class="col-6"><button onclick="App.Controller.confirmarProcessamento(true, true)"
+                                class="btn btn-outline-danger w-100 py-3 h-100 d-flex flex-column align-items-center gap-2"><i
+                                    class="ph ph-fire-fill fs-3"></i><span>Fazer Agora</span></button></div>
+                        <div class="col-6"><button onclick="App.Controller.confirmarProcessamento(true, false)"
+                                class="btn btn-outline-primary w-100 py-3 h-100 d-flex flex-column align-items-center gap-2"><i
+                                    class="ph ph-diamond-fill fs-3"></i><span>Deep Work</span></button></div>
+                        <div class="col-6"><button onclick="App.Controller.confirmarProcessamento(false, true)"
+                                class="btn btn-outline-warning w-100 py-3 h-100 d-flex flex-column align-items-center gap-2 text-dark"><i
+                                    class="ph ph-users-three-fill fs-3"></i><span>Delegar</span></button></div>
+                        <div class="col-6"><button onclick="App.Controller.confirmarProcessamento(false, false)"
+                                class="btn btn-outline-secondary w-100 py-3 h-100 d-flex flex-column align-items-center gap-2"><i
+                                    class="ph ph-trash-fill fs-3"></i><span>Eliminar</span></button></div>
+                    </div>
+
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="procTipo" id="proc-manut" value="manutencao"
+                            checked>
+                        <label class="btn btn-outline-secondary" for="proc-manut">🔧 Rotina</label>
+                        <input type="radio" class="btn-check" name="procTipo" id="proc-cresc" value="crescimento">
+                        <label class="btn btn-outline-success" for="proc-cresc">🚀 Meta</label>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="modal fade" id="modalConclusao" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal fade" id="modalRelatorio" tabindex="-1" style="z-index: 10050;">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header bg-primary text-white border-0 rounded-top-4">
+                    <h5 class="modal-title fw-bold">Analytics</h5><button type="button"
+                        class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row text-center mb-4 g-2">
+                        <div class="col-4">
+                            <div class="p-3 bg-body-tertiary rounded-4">
+                                <h3 class="fw-bold text-primary mb-0" id="review-total-minutos">0</h3>
+                                <small class="text-muted text-uppercase fw-bold" style="font-size: 0.65rem;">Minutos
+                                    XP</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-3 bg-body-tertiary rounded-4">
+                                <h3 class="fw-bold text-success mb-0" id="review-tarefas-feitas">0</h3>
+                                <small class="text-muted text-uppercase fw-bold"
+                                    style="font-size: 0.65rem;">Tarefas</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-3 bg-body-tertiary rounded-4">
+                                <h3 class="fw-bold text-warning mb-0" id="review-streak">0</h3>
+                                <small class="text-muted text-uppercase fw-bold"
+                                    style="font-size: 0.65rem;">Streak</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="review-feedback" class="mb-3 text-center small text-muted"></div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6"><canvas id="graficoFoco"></canvas></div>
+                        <div class="col-6"><canvas id="graficoQualidade"></canvas></div>
+                    </div>
+
+                    <div id="box-feedback-ai"
+                        class="bg-primary bg-opacity-10 p-3 rounded-3 border border-primary border-opacity-25 d-none">
+                        <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-bold">
+                            <i class="ph ph-sparkle-fill"></i> Análise do Coach
+                        </div>
+                        <p id="texto-feedback-ai" class="mb-0 small text-body" style="line-height: 1.6;">
+                        </p>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 p-3 pt-0 justify-content-center">
+                    <button type="button" class="btn btn-outline-primary rounded-pill px-4"
+                        onclick="App.Controller.gerarAnaliseIA()" id="btn-analise-ia">
+                        🔮 Analisar Performance
+                    </button>
+                    <button type="button" class="btn btn-dark rounded-pill px-4" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalConfig" tabindex="-1" style="z-index: 10050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Configurações</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">TEMPO PADRÃO</label>
+                        <select id="config-tempo" class="form-select" onchange="App.Controller.salvarConfiguracoes()">
+                            <option value="25">25 min (Pomodoro)</option>
+                            <option value="50">50 min (Deep Work)</option>
+                        </select>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">INTELIGÊNCIA ARTIFICIAL</label>
+
+                        <div class="input-group mb-2">
+                            <span class="input-group-text"><i class="ph ph-robot"></i></span>
+                            <select id="config-provider" class="form-select"
+                                onchange="App.Controller.atualizarLinkKey()">
+                                <option value="gemini">Google Gemini (Flash 1.5)</option>
+                                <option value="openai">OpenAI (GPT-4o Mini)</option>
+                                <option value="groq">Groq (Llama 3 - Grátis)</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ph ph-key"></i></span>
+                            <input type="password" id="config-apikey" class="form-control"
+                                placeholder="Cole sua API Key aqui...">
+                            <button class="btn btn-primary"
+                                onclick="App.Controller.salvarConfiguracoes(true)">Salvar</button>
+                        </div>
+
+                        <div class="mt-2 text-end">
+                            <a id="link-obter-key" href="https://aistudio.google.com/app/apikey" target="_blank"
+                                class="badge bg-primary-subtle text-primary text-decoration-none">Obter Chave Gemini
+                                ↗</a>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-dark btn-sm" onclick="App.Controller.baixarBackup()">Baixar
+                            Backup</button>
+                        <div class="input-group input-group-sm">
+                            <input type="file" class="form-control" id="arquivo-backup" accept=".json">
+                            <button class="btn btn-outline-warning"
+                                onclick="App.Controller.restaurarBackup()">Restaurar</button>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-center">
+                        <button class="btn btn-link text-danger btn-sm p-0 text-decoration-none"
+                            onclick="App.Controller.resetarDados()">Resetar Tudo</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalConclusao" tabindex="-1" data-bs-backdrop="static" style="z-index: 10055;">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg rounded-4 text-center overflow-hidden">
                 <div class="modal-body p-5 bg-success bg-opacity-10">
@@ -845,15 +799,17 @@
                     </div>
                     <h3 class="fw-bold text-success mb-2">Missão Cumprida?</h3>
                     <p class="text-muted mb-4">Você focou de verdade nessa tarefa?</p>
-                    
+
                     <div class="row g-2">
                         <div class="col-6">
-                            <button class="btn btn-light w-100 py-3 rounded-pill fw-bold text-muted" data-bs-dismiss="modal" onclick="App.View.toDash()">
+                            <button class="btn btn-light w-100 py-3 rounded-pill fw-bold text-muted"
+                                data-bs-dismiss="modal" onclick="App.View.toDash()">
                                 Não, cancelei
                             </button>
                         </div>
                         <div class="col-6">
-                            <button class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow-sm hover-scale" onclick="App.Controller.confirmarConclusaoReal()">
+                            <button class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow-sm hover-scale"
+                                onclick="App.Controller.confirmarConclusaoReal()">
                                 SIM, FEITO! 🎉
                             </button>
                         </div>
@@ -864,7 +820,7 @@
     </div>
 
     <div class="modal fade" id="modalMorning" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-        aria-hidden="true">
+        aria-hidden="true" style="z-index: 10055;">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
                 <div class="modal-body p-5 text-center text-white"
@@ -878,7 +834,7 @@
                     <div class="card border-0 bg-white text-dark shadow-sm p-4 rounded-4 mx-auto"
                         style="max-width: 500px;">
                         <textarea id="input-morning-focus"
-                            class="form-control border-0 bg-light fs-4 fw-bold text-center" rows="2"
+                            class="form-control border-0 bg-white text-dark fs-4 fw-bold text-center" rows="2"
                             placeholder="Ex: Finalizar a Landing Page..."></textarea>
                     </div>
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'focus-coach-v3'; // BUMP VERSION
+const CACHE_NAME = 'focus-coach-themas'; // BUMP VERSION
 const ASSETS = [
     './',
     './index.html',

@@ -1,41 +1,29 @@
+import {
+    Model
+} from './model.js';
 import confetti from 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/+esm';
 
-
 export const View = {
-    // ============================================================
-    // 1. ELEMENTOS E ÁUDIO
-    // ============================================================
     els: {
         onboard: document.getElementById('view-onboarding'),
         dash: document.getElementById('view-dashboard'),
         focus: document.getElementById('view-focus'),
         nav: document.getElementById('nav-principal')
     },
-
     audio: new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg'),
-
     ambience: {
         chuva: 'https://actions.google.com/sounds/v1/weather/rain_heavy_loud.ogg',
         cafe: 'https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg',
         fluxo: 'https://actions.google.com/sounds/v1/transportation/airplane_cabin_sounds.ogg',
-        win: 'https://actions.google.com/sounds/v1/cartoon/pop.ogg' // Som de 'Plop' satisfatório
+        win: 'https://actions.google.com/sounds/v1/cartoon/pop.ogg'
     },
-
     currentSound: null,
-    charts: {}, // Armazena instâncias dos gráficos
+    charts: {},
 
-    // ============================================================
-    // 2. HELPERS DE INTERFACE (Modais, Toasts, Loading)
-    // ============================================================
-
-    // Helper genérico para abrir/fechar modais do Bootstrap
     toggleModal(modalId, action = 'show') {
         const el = document.getElementById(modalId);
         if (!el) return;
-
-        // Tenta pegar a instância existente ou cria uma nova
         const modal = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
-
         if (action === 'show') modal.show();
         else modal.hide();
     },
@@ -43,20 +31,9 @@ export const View = {
     notify(msg, type = 'success') {
         const box = document.getElementById('toast-container');
         if (!box) return;
-
         const bg = type === 'success' ? 'text-bg-success' : (type === 'error' ? 'text-bg-danger' : 'text-bg-primary');
-
-        const toastHtml = `
-            <div class="toast align-items-center ${bg} border-0 show" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body fw-bold">${msg}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>`;
-
+        const toastHtml = `<div class="toast align-items-center ${bg} border-0 show" role="alert"><div class="d-flex"><div class="toast-body fw-bold">${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`;
         box.insertAdjacentHTML('beforeend', toastHtml);
-
-        // Remove automaticamente após 3.5s
         setTimeout(() => {
             if (box.lastElementChild) box.lastElementChild.remove();
         }, 3500);
@@ -80,10 +57,6 @@ export const View = {
         }
     },
 
-    // ============================================================
-    // 3. NAVEGAÇÃO E TEMAS
-    // ============================================================
-
     showStep(n) {
         document.querySelectorAll('.step-container').forEach(e => e.classList.add('d-none'));
         const s = document.getElementById(`step-${n}`);
@@ -92,13 +65,11 @@ export const View = {
 
     toDash(usuario, frase) {
         this.stopSound();
-
-        // Esconde todas as views e mostra Dashboard
         Object.values(this.els).forEach(e => e && e.classList.add('d-none'));
         this.els.dash.classList.remove('d-none');
         this.els.nav.classList.remove('d-none');
-
         document.title = "Focus Coach";
+
         this.applyTheme(usuario.config.tema);
 
         const f = document.getElementById('frase-coach');
@@ -106,7 +77,6 @@ export const View = {
 
         const key = document.getElementById('config-apikey');
         if (key) key.value = usuario.config.apiKey || '';
-
         const prov = document.getElementById('config-provider');
         if (prov) prov.value = usuario.config.provider || 'gemini';
     },
@@ -115,18 +85,18 @@ export const View = {
         this.els.dash.classList.add('d-none');
         this.els.nav.classList.add('d-none');
         this.els.focus.classList.remove('d-none');
-
         document.getElementById('foco-titulo').innerText = txt;
         this.updateTimer(min * 60, min * 60);
-
         const b = document.getElementById('badge-modo-foco');
         if (min >= 50) b.innerText = "⚡ DEEP WORK";
         else if (min <= 15) b.innerText = "🔋 START RÁPIDO";
         else b.innerText = "🚀 FLUXO";
     },
 
+    // Simplificado para apenas aplicar o tema passado
     applyTheme(tema) {
-        document.documentElement.setAttribute('data-bs-theme', tema || 'light');
+        const t = tema || Model.usuario.config.tema || 'light';
+        document.documentElement.setAttribute('data-bs-theme', t);
     },
 
     alternarHistorico() {
@@ -160,10 +130,6 @@ export const View = {
         }
     },
 
-    // ============================================================
-    // 4. RENDERIZAÇÃO DE LISTAS (TAREFAS E HÁBITOS)
-    // ============================================================
-
     render(usuario) {
         const ls = {
             q1: document.getElementById('lista-q1'),
@@ -173,7 +139,6 @@ export const View = {
             inbox: document.getElementById('lista-inbox'),
             done: document.getElementById('lista-concluidas')
         };
-
         if (!ls.q1) return;
         Object.values(ls).forEach(l => l.innerHTML = '');
         const counts = {
@@ -183,17 +148,14 @@ export const View = {
             q4: 0
         };
 
-        // ATUALIZAÇÃO DA META SEMANAL
         const metaEl = document.getElementById('texto-meta-semanal');
         if (metaEl) {
             metaEl.innerText = usuario.metaSemanal || "🎯 Clique para definir seu Foco Semanal";
-            // Adiciona um estilo visual se estiver preenchido
             metaEl.style.opacity = usuario.metaSemanal ? "1" : "0.5";
         }
 
         (usuario.tarefas || []).forEach(t => {
             const badge = t.tipo === 'crescimento' ? '<span class="badge badge-crescimento ms-2">🚀</span>' : '<span class="badge badge-manutencao ms-2">🔧</span>';
-            // Nota: onclicks apontam para App.Controller (Bridge global)
             const html = `
                 <li class="list-group-item d-flex justify-content-between align-items-center animate-fade-in">
                     <div class="d-flex align-items-center gap-2 overflow-hidden w-100">
@@ -223,13 +185,11 @@ export const View = {
             }
         });
 
-        // Mostra/Esconde placeholders de listas vazias
         ['q1', 'q2', 'q3', 'q4'].forEach(k => {
             const el = document.getElementById(`empty-${k}`);
             if (el) counts[k] === 0 ? el.classList.remove('d-none') : el.classList.add('d-none');
         });
 
-        // Controle da Inbox
         const inboxPanel = document.getElementById('painel-inbox');
         if (ls.inbox.innerHTML.trim() !== "") {
             inboxPanel.classList.remove('d-none');
@@ -238,11 +198,9 @@ export const View = {
             inboxPanel.classList.add('d-none');
         }
 
-        // Histórico (últimas 5)
         (usuario.historico || []).slice().reverse().slice(0, 5).forEach(t =>
             ls.done.innerHTML += `<li class="list-group-item bg-transparent text-muted text-decoration-line-through d-flex justify-content-between"><span><i class="ph ph-check-circle text-success me-2"></i>${t.texto}</span><small>+${t.tempoInvestido}m</small></li>`
         );
-
         this.renderHabits(usuario);
     },
 
@@ -250,86 +208,59 @@ export const View = {
         const lh = document.getElementById('lista-habitos');
         if (lh) {
             lh.innerHTML = '';
-            const hojeDia = new Date().getDay(); // 0-6
-
+            const hojeDia = new Date().getDay();
             (usuario.habitos || []).forEach(h => {
-                // Verifica se hoje é dia de fazer
-                const ehDia = h.dias ? h.dias.includes(hojeDia) : true; // Retrocompatibilidade
-
-                // Estilo visual: Opaco se não for dia, Normal se for
+                const ehDia = h.dias ? h.dias.includes(hojeDia) : true;
                 const opacity = ehDia ? '1' : '0.5';
-                const icon = ehDia ? (h.concluidoHoje ? '🔥' : '⬜') : '💤'; // Zzz para descanso
-                const title = ehDia ? 'Hoje é dia!' : 'Descanso hoje';
-
+                const icon = ehDia ? (h.concluidoHoje ? '🔥' : '⬜') : '💤';
                 lh.innerHTML += `
                 <li class="list-group-item d-flex justify-content-between align-items-center" style="opacity: ${opacity}">
                     <div class="d-flex gap-3 align-items-center">
-                        <input class="form-check-input mt-0" type="checkbox" 
-                            ${h.concluidoHoje ? 'checked' : ''} 
-                            ${!ehDia ? 'disabled' : ''}
-                            onchange="App.Controller.toggleHabit(${h.id})"
-                            style="cursor: pointer;">
-                        
+                        <input class="form-check-input mt-0" type="checkbox" ${h.concluidoHoje ? 'checked' : ''} ${!ehDia ? 'disabled' : ''} onchange="App.Controller.toggleHabit(${h.id})" style="cursor: pointer;">
                         <div class="d-flex flex-column" style="line-height: 1.2;">
                             <span class="${h.concluidoHoje ? 'text-decoration-line-through text-muted' : ''}">${h.texto}</span>
-                            <small class="text-muted" style="font-size: 0.7rem;">
-                                ${icon} Streak: ${h.streak} dias
-                            </small>
+                            <small class="text-muted" style="font-size: 0.7rem;">${icon} Streak: ${h.streak} dias</small>
                         </div>
                     </div>
                     <i class="ph ph-trash opacity-25 hover-danger" style="cursor: pointer;" onclick="App.Controller.delHabit(${h.id})"></i>
                 </li>`;
             });
-
-            if (usuario.habitos.length === 0) {
-                lh.innerHTML = '<div class="text-center text-muted small py-3">Nenhum hábito ativo.</div>';
-            }
+            if (usuario.habitos.length === 0) lh.innerHTML = '<div class="text-center text-muted small py-3">Nenhum hábito ativo.</div>';
         }
-
-
     },
 
-    // --- NOVO MÉTODO: RECOMPENSA VISUAL E SONORA ---
     playReward() {
-        // 1. Som de Vitória
         const winAudio = new Audio(this.ambience.win);
         winAudio.volume = 0.5;
-        winAudio.play().catch(() => { }); // Ignora erro se navegador bloquear auto-play
-
-        // 2. Explosão de Confetes (Esquerda e Direita)
+        winAudio.play().catch(() => {});
         const duration = 2000;
         const end = Date.now() + duration;
-
         (function frame() {
             confetti({
                 particleCount: 5,
                 angle: 60,
                 spread: 55,
-                origin: { x: 0 },
-                colors: ['#0d6efd', '#198754', '#ffc107'] // Cores do seu app (Azul, Verde, Amarelo)
+                origin: {
+                    x: 0
+                },
+                colors: ['#0d6efd', '#198754', '#ffc107']
             });
             confetti({
                 particleCount: 5,
                 angle: 120,
                 spread: 55,
-                origin: { x: 1 },
+                origin: {
+                    x: 1
+                },
                 colors: ['#0d6efd', '#198754', '#ffc107']
             });
-
-            if (Date.now() < end) {
-                requestAnimationFrame(frame);
-            }
+            if (Date.now() < end) requestAnimationFrame(frame);
         }());
     },
-
-    // ============================================================
-    // 5. ATUALIZAÇÕES EM TEMPO REAL (TIMER E STATS)
-    // ============================================================
 
     updateStats(minHoje, nivel) {
         document.getElementById('display-minutos-foco').innerText = minHoje;
         document.getElementById('badge-nivel').innerText = `${nivel.i} ${nivel.t}`;
-
         const b = document.getElementById('barra-dia-fundo');
         if (b) b.style.width = `${Math.min((minHoje / 240) * 100, 100)}%`;
     },
@@ -349,18 +280,16 @@ export const View = {
             this.stopSound();
             this.audio.src = this.ambience[t];
             this.audio.loop = true;
-            this.audio.play().catch(() => { });
+            this.audio.play().catch(() => {});
             this.currentSound = t;
         }
         this.updateSoundBtns();
     },
-
     stopSound() {
         this.audio.pause();
         this.currentSound = null;
         this.updateSoundBtns();
     },
-
     updateSoundBtns() {
         ['chuva', 'cafe', 'fluxo'].forEach(t => {
             const b = document.getElementById(`btn-som-${t}`);
@@ -376,21 +305,13 @@ export const View = {
         });
     },
 
-    // ============================================================
-    // 6. CHATBOT VISUAL
-    // ============================================================
-
     appendChatBubble(texto, tipo) {
         const container = document.getElementById('chat-history');
         const id = 'bubble-' + Date.now();
         const div = document.createElement('div');
         div.id = id;
-        div.className = `chat-bubble ${tipo}`; // 'user' ou 'ai'
-
-        // Se for AI, o texto já vem formatado HTML (ou deve ser)
-        // Se for User, convertemos quebras de linha
+        div.className = `chat-bubble ${tipo}`;
         div.innerHTML = tipo === 'ai' ? texto : texto.replace(/\n/g, '<br>');
-
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
         return id;
@@ -398,12 +319,10 @@ export const View = {
 
     restoreChatHistory(history) {
         const container = document.getElementById('chat-history');
-        if (history.length > 0) container.innerHTML = ''; // Limpa msg inicial se tiver histórico
-
+        if (history.length > 0) container.innerHTML = '';
         history.forEach(msg => {
             const div = document.createElement('div');
             div.className = `chat-bubble ${msg.role === 'user' ? 'user' : 'ai'}`;
-            // Formata o conteúdo salvo (quebras de linha, etc)
             div.innerHTML = msg.content.replace(/\n/g, '<br>');
             container.appendChild(div);
         });
@@ -411,23 +330,16 @@ export const View = {
     },
 
     formatarTextoIA(texto) {
-        // Remove comandos internos e formata Markdown básico
-        const limpo = texto.replace(/\[ADD:.*?\]/g, '').replace(/\[SET_GOAL:.*?\]/g, '').trim();
+        const limpo = texto.replace(/\[ADD:.*?\]/g, '').replace(/\[SET_GOAL:.*?\]/g, '').replace(/\[REMOVE:.*?\]/g, '').replace(/\[ORGANIZE\]/g, '').trim();
         return limpo.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
     },
-
-    // ============================================================
-    // 7. RELATÓRIOS E GRÁFICOS (Chart.js)
-    // ============================================================
 
     showReport(xp, tarefas, streak, dados) {
         document.getElementById('review-total-minutos').innerText = xp;
         document.getElementById('review-tarefas-feitas').innerText = tarefas;
         document.getElementById('review-streak').innerText = streak;
-
         const tot = dados.q1 + dados.q2 + dados.q3 + dados.q4;
         const fb = document.getElementById('review-feedback');
-
         if (tot === 0) fb.innerHTML = "Sem dados semanais.";
         else {
             const pQ2 = (dados.q2 / tot) * 100;
@@ -441,10 +353,7 @@ export const View = {
                 fb.innerHTML = "Continue registrando.";
             }
         }
-
-        // --- CHART.JS (Com proteção) ---
         if (typeof Chart !== 'undefined') {
-            // Gráfico 1: Doughnut
             const c1 = document.getElementById('graficoFoco');
             if (c1) {
                 if (this.charts.f) this.charts.f.destroy();
@@ -469,8 +378,6 @@ export const View = {
                     }
                 });
             }
-
-            // Gráfico 2: Bar
             const c2 = document.getElementById('graficoQualidade');
             if (c2) {
                 if (this.charts.q) this.charts.q.destroy();
@@ -500,24 +407,7 @@ export const View = {
                     }
                 });
             }
-        } else {
-            console.warn("Chart.js não carregado. Gráficos indisponíveis.");
         }
-
         this.toggleModal('modalRelatorio', 'show');
-    },
-
-    // Funções de passagem para backups
-    baixarBackup() {
-        // A lógica de criar o blob é feita aqui pois envolve DOM (criar elemento 'a')
-        // Mas os DADOS vêm do Controller -> Model
-        // O Controller chama View.baixarBackup() passando string se quiser, 
-        // mas no controller atual ele chama this.baixarBackupReal() que faz isso. 
-        // Vamos manter simples: o controller cuida disso.
-    },
-
-    restaurarBackup() {
-        // Apenas abre o seletor se fosse visual, mas o input file já está no HTML
-        // Essa função fica vazia pois o controller lê o input direto.
     }
 };

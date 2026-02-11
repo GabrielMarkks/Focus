@@ -27,14 +27,14 @@ export const Model = {
         tarefaId: null,
         startTime: null
     },
-    citacoes: ["Menos, porém melhor.", "O foco é a nova moeda.", "1% melhor todo dia.", "Feito é melhor que perfeito."],
+    citacoes: ["Menos, porém melhor.", "O foco é a nova moeda.", "1% melhor todo dia.", "Feito é melhor que perfeito.", "Sua atenção é seu maior ativo."],
 
     salvar() {
         try {
             localStorage.setItem('focusApp_user', JSON.stringify(this.usuario));
             localStorage.setItem('focusApp_chat', JSON.stringify(this.chatMemory));
         } catch (e) {
-            console.error(e)
+            console.error(e);
         }
     },
 
@@ -52,18 +52,23 @@ export const Model = {
                 });
                 if (!this.usuario.config) this.usuario.config = {};
                 if (!this.usuario.config.provider) this.usuario.config.provider = 'gemini';
-            } catch (e) { }
+            } catch (e) {}
         }
+
         const c = localStorage.getItem('focusApp_chat');
         if (c) {
             try {
                 const chatData = JSON.parse(c);
-                if (Date.now() - chatData.lastActive < 1800000) this.chatMemory = chatData;
-                else this.chatMemory = {
-                    history: [],
-                    lastActive: Date.now()
-                };
-            } catch (e) { }
+                // 30 min de validade para a memória do chat
+                if (Date.now() - chatData.lastActive < 1800000) {
+                    this.chatMemory = chatData;
+                } else {
+                    this.chatMemory = {
+                        history: [],
+                        lastActive: Date.now()
+                    };
+                }
+            } catch (e) {}
         }
         this.checkDia();
         return !!d;
@@ -81,12 +86,25 @@ export const Model = {
 
     checkDia() {
         const hoje = new Date().toDateString();
+        const ontem = new Date();
+        ontem.setDate(ontem.getDate() - 1);
+        const ontemStr = ontem.toDateString();
+        const diaSemanaOntem = ontem.getDay();
+
         let mudou = false;
         if (Array.isArray(this.usuario.habitos)) {
             this.usuario.habitos.forEach(h => {
+                // Reseta status diário
                 if (h.ultimaData !== hoje) {
                     h.concluidoHoje = false;
                     mudou = true;
+                }
+                // Verifica quebra de streak
+                if (h.ultimaData !== ontemStr && h.ultimaData !== hoje) {
+                    if (h.dias && h.dias.includes(diaSemanaOntem)) {
+                        h.streak = 0;
+                        mudou = true;
+                    }
                 }
             });
         }
@@ -98,12 +116,11 @@ export const Model = {
         this.salvar();
     },
 
-    // CRUD TAREFAS
+    // --- TAREFAS ---
     addTarefa(texto, urgente, importante, tipo, isInbox = false) {
         if (!Array.isArray(this.usuario.tarefas)) this.usuario.tarefas = [];
-
         const novaTarefa = {
-            id: Date.now(),
+            id: Date.now() + Math.random(),
             texto: texto,
             urgente: urgente,
             importante: importante,
@@ -111,9 +128,8 @@ export const Model = {
             feita: false,
             isInbox: isInbox,
             tempoInvestido: 0,
-            criadaEm: Date.now() // <--- NOVO: Carimbo de data
+            criadaEm: Date.now()
         };
-
         this.usuario.tarefas.push(novaTarefa);
         this.salvar();
         return novaTarefa;
@@ -140,36 +156,25 @@ export const Model = {
         }
     },
     delTarefa(id) {
-        if (Array.isArray(this.usuario.tarefas)) {
-            this.usuario.tarefas = this.usuario.tarefas.filter(t => String(t.id) !== String(id));
-            this.salvar();
-        }
+        this.usuario.tarefas = this.usuario.tarefas.filter(t => String(t.id) !== String(id));
+        this.salvar();
     },
     encerrarDia() {
-        if (!Array.isArray(this.usuario.tarefas)) return;
-
-        // 1. Separa o joio do trigo
         const pendentes = this.usuario.tarefas.filter(t => !t.feita);
-        const concluidas = this.usuario.tarefas.filter(t => t.feita); // (Caso tenha sobrado alguma visualmente)
+        const concluidas = this.usuario.tarefas.filter(t => t.feita);
 
-        // 2. Mantém APENAS as pendentes para amanhã
-        // Opcional: Você pode adicionar uma tag "migrada" ou contar quantas vezes ela foi adiada
         this.usuario.tarefas = pendentes.map(t => ({
             ...t,
-            adiada: (t.adiada || 0) + 1 // Contador de vergonha (anti-autoboicote futuro)
+            adiada: (t.adiada || 0) + 1
         }));
-
-        // 3. Salva
         this.salvar();
-
         return {
             migradas: pendentes.length,
             limpas: concluidas.length
         };
     },
     obterTarefa(id) {
-        if (!Array.isArray(this.usuario.tarefas)) return null;
-        return this.usuario.tarefas.find(t => String(t.id) === String(id));
+        return this.usuario.tarefas.find(t => String(t.id) === String(id)) || null;
     },
     moverInboxParaMatriz(id, imp, urg, tipo) {
         const t = this.obterTarefa(id);
@@ -182,58 +187,21 @@ export const Model = {
         }
     },
 
-    // HABITOS
+    // --- HÁBITOS ---
     addHabito(texto, dias = [0, 1, 2, 3, 4, 5, 6]) {
         if (!Array.isArray(this.usuario.habitos)) this.usuario.habitos = [];
         this.usuario.habitos.push({
             id: Date.now(),
             texto: texto,
-            dias: dias, // Array de dias (0=Dom, 1=Seg...)
+            dias: dias,
             streak: 0,
             ultimaData: null,
             concluidoHoje: false
         });
         this.salvar();
     },
-
-    // LÓGICA DE STREAK INTELIGENTE
-    checkDia() {
-        const hoje = new Date();
-        const hojeStr = hoje.toDateString();
-
-        // Data de ontem para verificar quebra de streak
-        const ontem = new Date();
-        ontem.setDate(ontem.getDate() - 1);
-        const ontemStr = ontem.toDateString();
-        const diaSemanaOntem = ontem.getDay();
-
-        let mudou = false;
-
-        if (Array.isArray(this.usuario.habitos)) {
-            this.usuario.habitos.forEach(h => {
-                // 1. Reseta o status visual "concluidoHoje" se mudou o dia
-                if (h.ultimaData !== hojeStr) {
-                    h.concluidoHoje = false;
-                    mudou = true;
-                }
-
-                // 2. Verifica se Quebrou o Streak
-                // Se a última vez que fez NÃO foi ontem...
-                if (h.ultimaData !== ontemStr && h.ultimaData !== hojeStr) {
-                    // ...E se ontem ele DEVERIA ter feito (estava nos dias programados)
-                    if (h.dias && h.dias.includes(diaSemanaOntem)) {
-                        h.streak = 0; // Quebrou! 😢
-                        mudou = true;
-                    }
-                    // Se ontem era dia de folga (não estava no array), o streak é mantido! 🛡️
-                }
-            });
-        }
-        if (mudou) this.salvar();
-    },
-
     toggleHabito(id) {
-        const h = (this.usuario.habitos || []).find(x => x.id == id);
+        const h = this.usuario.habitos.find(x => x.id == id);
         if (h) {
             const hoje = new Date().toDateString();
             if (!h.concluidoHoje) {
@@ -249,27 +217,18 @@ export const Model = {
         }
     },
     delHabito(id) {
-        if (Array.isArray(this.usuario.habitos)) {
-            this.usuario.habitos = this.usuario.habitos.filter(x => x.id != id);
-            this.salvar();
-        }
+        this.usuario.habitos = this.usuario.habitos.filter(x => x.id != id);
+        this.salvar();
     },
 
-    // ANALYTICS (Aqui estava o erro: garantindo que as funções existam)
+    // --- ANALYTICS ---
     getXP() {
         return (this.usuario.historico || []).reduce((a, b) => a + (b.tempoInvestido || 0), 0);
     },
-
-    calcularMinutosHoje() {
+    getMinHoje() {
         const h = new Date().toDateString();
         return (this.usuario.historico || []).filter(x => new Date(x.dataConclusao).toDateString() === h).reduce((a, b) => a + (b.tempoInvestido || 0), 0);
     },
-
-    // Função wrapper que o Controller chama
-    getMinHoje() {
-        return this.calcularMinutosHoje();
-    },
-
     getNivel() {
         const xp = this.getXP();
         return xp < 60 ? {
@@ -319,7 +278,7 @@ export const Model = {
                 this.salvar();
                 return true;
             }
-        } catch (e) { }
+        } catch (e) {}
         return false;
     },
     obterFraseAleatoria() {
