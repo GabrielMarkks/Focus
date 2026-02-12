@@ -3,6 +3,7 @@ export const Model = {
         nome: "",
         proposito: "",
         metaSemanal: "",
+        metasTrimestrais: [],
         papeis: [],
         tarefas: [],
         historico: [],
@@ -52,7 +53,7 @@ export const Model = {
                 });
                 if (!this.usuario.config) this.usuario.config = {};
                 if (!this.usuario.config.provider) this.usuario.config.provider = 'gemini';
-            } catch (e) {}
+            } catch (e) { }
         }
 
         const c = localStorage.getItem('focusApp_chat');
@@ -68,7 +69,18 @@ export const Model = {
                         lastActive: Date.now()
                     };
                 }
-            } catch (e) {}
+            } catch (e) { }
+        }
+
+        // --- MIGRAÇÃO AUTOMÁTICA (String -> Objeto) ---
+        if (typeof this.usuario.metaSemanal === 'string') {
+            this.usuario.metaSemanal = {
+                texto: this.usuario.metaSemanal,
+                subtarefas: []
+            };
+        }
+        if (!this.usuario.metaSemanal) {
+            this.usuario.metaSemanal = { texto: "", subtarefas: [] };
         }
         this.checkDia();
         return !!d;
@@ -120,7 +132,7 @@ export const Model = {
     addTarefa(texto, urgente, importante, tipo, isInbox = false) {
         if (!Array.isArray(this.usuario.tarefas)) this.usuario.tarefas = [];
         const novaTarefa = {
-            id: Date.now() + Math.random(),
+            id: crypto.randomUUID(),
             texto: texto,
             urgente: urgente,
             importante: importante,
@@ -191,7 +203,7 @@ export const Model = {
     addHabito(texto, dias = [0, 1, 2, 3, 4, 5, 6]) {
         if (!Array.isArray(this.usuario.habitos)) this.usuario.habitos = [];
         this.usuario.habitos.push({
-            id: Date.now(),
+            id: crypto.randomUUID(),
             texto: texto,
             dias: dias,
             streak: 0,
@@ -278,10 +290,98 @@ export const Model = {
                 this.salvar();
                 return true;
             }
-        } catch (e) {}
+        } catch (e) { }
         return false;
     },
     obterFraseAleatoria() {
         return this.citacoes[Math.floor(Math.random() * this.citacoes.length)];
+    },
+
+
+
+    // --- CRUD TRIMESTRAL (ATUALIZADO COM SUB-TAREFAS) ---
+    addMetaTrimestral(texto) {
+        if (!Array.isArray(this.usuario.metasTrimestrais)) this.usuario.metasTrimestrais = [];
+        this.usuario.metasTrimestrais.push({
+            id: crypto.randomUUID(),
+            texto: texto,
+            subtarefas: [], // Array para os passos menores
+            concluida: false
+        });
+        this.salvar();
+    },
+    delMetaTrimestral(id) {
+        this.usuario.metasTrimestrais = this.usuario.metasTrimestrais.filter(x => x.id != id);
+        this.salvar();
+    },
+    // Adicionar Sub-tarefa dentro da Meta
+    addSubTarefaMeta(metaId, textoSub) {
+        const meta = this.usuario.metasTrimestrais.find(m => m.id == metaId);
+        if (meta) {
+            if (!meta.subtarefas) meta.subtarefas = [];
+            meta.subtarefas.push({
+                id: crypto.randomUUID(),
+                texto: textoSub,
+                feita: false
+            });
+            this.salvar();
+        }
+    },
+    // Marcar/Desmarcar Sub-tarefa
+    toggleSubTarefaMeta(metaId, subId) {
+        const meta = this.usuario.metasTrimestrais.find(m => m.id == metaId);
+        if (meta && meta.subtarefas) {
+            const sub = meta.subtarefas.find(s => s.id == subId);
+            if (sub) {
+                sub.feita = !sub.feita;
+                // Opcional: Se todas estiverem feitas, marca a meta pai como feita? 
+                // Por enquanto deixamos manual para o usuário sentir o prazer de concluir a meta grande.
+                this.salvar();
+            }
+        }
+    },
+    // Deletar Sub-tarefa
+    delSubTarefaMeta(metaId, subId) {
+        const meta = this.usuario.metasTrimestrais.find(m => m.id == metaId);
+        if (meta && meta.subtarefas) {
+            meta.subtarefas = meta.subtarefas.filter(s => s.id != subId);
+            this.salvar();
+        }
+    },
+
+    // Adiciona sub-tarefa na meta da semana
+    addSubTarefaSemanal(texto) {
+        // Garante estrutura
+        if (typeof this.usuario.metaSemanal !== 'object') this.usuario.metaSemanal = { texto: "", subtarefas: [] };
+
+        this.usuario.metaSemanal.subtarefas.push({
+            id: crypto.randomUUID(),
+            texto: texto,
+            feita: false
+        });
+        this.salvar();
+    },
+
+    toggleSubTarefaSemanal(id) {
+        if (this.usuario.metaSemanal && this.usuario.metaSemanal.subtarefas) {
+            const sub = this.usuario.metaSemanal.subtarefas.find(s => s.id == id);
+            if (sub) {
+                sub.feita = !sub.feita;
+                this.salvar();
+            }
+        }
+    },
+
+    delSubTarefaSemanal(id) {
+        if (this.usuario.metaSemanal && this.usuario.metaSemanal.subtarefas) {
+            this.usuario.metaSemanal.subtarefas = this.usuario.metaSemanal.subtarefas.filter(s => s.id != id);
+            this.salvar();
+        }
+    },
+
+    atualizarTextoMetaSemanal(texto) {
+        if (typeof this.usuario.metaSemanal !== 'object') this.usuario.metaSemanal = { texto: "", subtarefas: [] };
+        this.usuario.metaSemanal.texto = texto;
+        this.salvar();
     }
 };

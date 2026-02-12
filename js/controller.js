@@ -249,28 +249,40 @@ export const Controller = {
     },
 
     definirMetaSemanal() {
-        const input = document.getElementById('input-meta-semanal');
-        if (input) {
-            input.value = Model.usuario.metaSemanal || "";
-            input.onkeydown = (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.salvarMetaSemanal();
-                }
-            };
-        }
+        // Renderiza o conteúdo do modal antes de abrir
+        App.View.renderModalMetaSemanal();
         View.toggleModal('modalMeta', 'show');
-        setTimeout(() => input && input.focus(), 300);
     },
 
-    salvarMetaSemanal() {
-        const val = document.getElementById('input-meta-semanal').value.trim();
-        if (val) {
-            Model.atualizarUsuario('metaSemanal', val);
-            this.refreshDash();
-            View.notify("Foco definido! 🎯");
+    salvarTextoMetaSemanal() {
+        // Salva apenas o título (as sub-tarefas salvam direto)
+        const val = document.getElementById('input-meta-semanal-titulo').value.trim();
+        Model.atualizarTextoMetaSemanal(val);
+        this.refreshDash();
+        View.notify("Título atualizado!");
+    },
+
+    addSubTarefaSemanal() {
+        const input = document.getElementById('input-sub-semanal');
+        const valor = input.value.trim();
+        if (valor) {
+            Model.addSubTarefaSemanal(valor);
+            input.value = '';
+            App.View.renderModalMetaSemanal(); // Re-renderiza a lista no modal
+            this.refreshDash(); // Atualiza a barra de progresso no fundo
         }
-        View.toggleModal('modalMeta', 'hide');
+    },
+
+    toggleSubTarefaSemanal(id) {
+        Model.toggleSubTarefaSemanal(id);
+        App.View.renderModalMetaSemanal();
+        this.refreshDash();
+    },
+
+    delSubTarefaSemanal(id) {
+        Model.delSubTarefaSemanal(id);
+        App.View.renderModalMetaSemanal();
+        this.refreshDash();
     },
 
     async organizarComIA() {
@@ -304,7 +316,14 @@ export const Controller = {
             View.notify(`${mudou} tarefas organizadas com sucesso!`, "success");
         } catch (e) {
             console.error(e);
-            View.notify(`Erro IA: Tente novamente.`, "error");
+            // MELHORIA: Mensagem mais clara baseada no erro
+            let msg = "Erro na IA. Tente novamente.";
+            if (e.message.includes("401") || e.message.includes("API Key")) msg = "Chave de API inválida. Verifique nos Ajustes.";
+            if (e.message.includes("429") || e.message.includes("Quota")) msg = "Limite da API excedido (Quota).";
+
+            View.notify(msg, "error");
+            // Se falhar, abre o modal de config para o usuário corrigir se for chave
+            if (msg.includes("Chave")) new bootstrap.Modal(document.getElementById('modalConfig')).show();
         } finally {
             View.toggleLoading(false);
         }
@@ -372,6 +391,7 @@ export const Controller = {
             nome: Model.usuario.nome,
             proposito: Model.usuario.proposito,
             metaSemanal: Model.usuario.metaSemanal,
+            metas: Model.usuario.metasTrimestrais,
             tarefas: Model.usuario.tarefas
         };
 
@@ -684,5 +704,100 @@ export const Controller = {
         document.getElementById('display-minutos-foco').innerText = "0";
         document.getElementById('review-tarefas-feitas').innerText = "0";
         document.getElementById('lista-concluidas').innerHTML = '';
-    }
+    },
+
+    // --- PLANEJAMENTO TRIMESTRAL ---
+    abrirVisaoMacro() {
+        // Renderiza a lista antes de abrir
+        App.View.renderTrimestral(Model.usuario.metasTrimestrais || []);
+        View.toggleModal('modalMacro', 'show');
+        setTimeout(() => {
+            const input = document.getElementById('input-meta-macro');
+            if (input) input.focus();
+        }, 500);
+    },
+
+    adicionarMetaMacro() {
+        const input = document.getElementById('input-meta-macro');
+        const valor = input.value.trim();
+        if (valor) {
+            Model.addMetaTrimestral(valor);
+            input.value = ''; // Limpa input
+            // Re-renderiza a lista
+            App.View.renderTrimestral(Model.usuario.metasTrimestrais);
+            View.notify("Meta de longo prazo definida! 🔭");
+        }
+    },
+
+    toggleMetaMacro(id) {
+        Model.toggleMetaTrimestral(id);
+        App.View.renderTrimestral(Model.usuario.metasTrimestrais);
+    },
+
+    delMetaMacro(id) {
+        if (confirm("Desistir dessa meta?")) {
+            Model.delMetaTrimestral(id);
+            App.View.renderTrimestral(Model.usuario.metasTrimestrais);
+        }
+    },
+
+    // --- VISÃO MACRO (ATUALIZADO) ---
+    adicionarSubTarefa(metaId) {
+        const input = document.getElementById(`input-sub-${metaId}`);
+        const valor = input.value.trim();
+        if (valor) {
+            Model.addSubTarefaMeta(metaId, valor);
+            App.View.renderTrimestral(Model.usuario.metasTrimestrais);
+        }
+    },
+
+    toggleSubTarefa(metaId, subId) {
+        Model.toggleSubTarefaMeta(metaId, subId);
+        App.View.renderTrimestral(Model.usuario.metasTrimestrais);
+    },
+
+    delSubTarefa(metaId, subId) {
+        if (confirm("Remover este passo?")) {
+            Model.delSubTarefaMeta(metaId, subId);
+            App.View.renderTrimestral(Model.usuario.metasTrimestrais);
+        }
+    },
+
+    // --- NOVO: AUTO-QUEBRAR META COM IA ---
+    async autoQuebrarMeta(metaId) {
+        const meta = Model.usuario.metasTrimestrais.find(m => m.id == metaId);
+        if (!meta) return;
+
+        const provider = Model.usuario.config.provider;
+        const apiKey = Model.usuario.config.apiKey;
+
+        if (!apiKey) {
+            View.notify("Configure sua API Key para usar a mágica! ✨", "error");
+            return;
+        }
+
+        // Feedback visual (Botão girando)
+        const btn = document.getElementById(`btn-magic-${metaId}`);
+        const iconOriginal = btn.innerHTML;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+        btn.disabled = true;
+
+        try {
+            const passos = await AI_Manager.gerarSubtarefas(provider, apiKey, meta.texto);
+
+            if (Array.isArray(passos)) {
+                passos.forEach(passo => {
+                    Model.addSubTarefaMeta(metaId, passo);
+                });
+                App.View.renderTrimestral(Model.usuario.metasTrimestrais);
+                View.notify("Plano tático gerado! 🚀", "success");
+            }
+        } catch (e) {
+            console.error(e);
+            View.notify("Não consegui criar o plano. Verifique sua API Key.", "error");
+            // Restaura o botão original
+            btn.innerHTML = iconOriginal;
+            btn.disabled = false;
+        }
+    },
 };

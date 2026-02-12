@@ -54,6 +54,15 @@
                     <button class="btn btn-icon text-body" data-bs-toggle="dropdown"><i
                             class="ph ph-dots-three-vertical fs-5"></i></button>
                     <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-4">
+                        <li>
+                            <button class="dropdown-item fw-bold text-primary"
+                                onclick="App.Controller.abrirVisaoMacro()">
+                                <i class="ph ph-telescope me-2"></i> Visão Macro (3 Meses)
+                            </button>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
                         <li><button class="dropdown-item" onclick="App.Controller.alternarTema()"><i
                                     class="ph ph-moon me-2"></i>Tema</button></li>
                         <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modalConfig"><i
@@ -594,6 +603,7 @@
     <div class="modal fade" id="modalMeta" tabindex="-1" aria-hidden="true" style="z-index: 10050;">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+
                 <div class="modal-header border-0 bg-primary bg-opacity-10 pb-3">
                     <h5 class="modal-title fw-bold text-primary d-flex align-items-center gap-2">
                         <i class="ph ph-flag-banner"></i> Foco da Semana
@@ -601,24 +611,15 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
 
-                <div class="modal-body p-4">
-                    <label for="input-meta-semanal" class="form-label text-muted small fw-bold text-uppercase">Sua
-                        Prioridade #1</label>
-                    <textarea id="input-meta-semanal" class="form-control bg-body-tertiary border-0 fs-5 fw-medium"
-                        rows="2" placeholder="Ex: Lançar o Site v1..."></textarea>
-                    <div class="form-text mt-2">
-                        💡 Escolha uma única grande vitória para esta semana.
-                    </div>
+                <div class="modal-body p-4" id="container-meta-semanal">
                 </div>
 
-                <div class="modal-footer border-0 p-3 bg-body-tertiary">
-                    <button type="button" class="btn btn-link text-muted text-decoration-none"
-                        data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold"
-                        onclick="App.Controller.salvarMetaSemanal()">
-                        <i class="ph ph-check me-1"></i> Definir Meta
+                <div class="modal-footer border-0 p-3 bg-body-tertiary justify-content-center">
+                    <button type="button" class="btn btn-primary rounded-pill px-5 fw-bold" data-bs-dismiss="modal">
+                        <i class="ph ph-check me-1"></i> Concluir
                     </button>
                 </div>
+
             </div>
         </div>
     </div>
@@ -693,6 +694,7 @@
                         </div>
                     </div>
 
+                    <div id="macro-analytics" class="mb-4 d-none"></div>
                     <div id="review-feedback" class="mb-3 text-center small text-muted"></div>
 
                     <div class="row g-3 mb-3">
@@ -848,6 +850,36 @@
                             onclick="App.Controller.pularMorning()">Pular por hoje</small>
                     </div>
 
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalMacro" tabindex="-1" style="z-index: 10050;">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header border-0 p-4 pb-0">
+                    <div>
+                        <h4 class="fw-bold text-primary mb-1">
+                            <i class="ph ph-telescope me-2"></i>Visão Macro
+                        </h4>
+                        <p class="text-muted small mb-0">Suas "Big Rocks" para este trimestre.</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-4 bg-body-tertiary">
+                    <div class="input-group input-group-lg mb-4 shadow-sm">
+                        <input type="text" id="input-meta-macro" class="form-control border-0"
+                            placeholder="Ex: Lançar MVP, Faturar 10k..."
+                            onkeypress="if(event.key==='Enter') App.Controller.adicionarMetaMacro()">
+                        <button class="btn btn-primary px-4" onclick="App.Controller.adicionarMetaMacro()">
+                            <i class="ph ph-plus fw-bold"></i>
+                        </button>
+                    </div>
+
+                    <div id="lista-metas-macro" class="d-flex flex-column">
+                    </div>
                 </div>
             </div>
         </div>

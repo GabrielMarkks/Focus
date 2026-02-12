@@ -1,5 +1,5 @@
 export const AI_Manager = {
-    // Prompt para Classificação
+    // Prompt para Classificação (JSON Mode)
     SYSTEM_PROMPT_SORT: `
         Você é um algoritmo JSON. 
         Receba uma lista de tarefas com IDs e Textos.
@@ -14,6 +14,7 @@ export const AI_Manager = {
         [{"id": "ID_ORIGINAL", "importante": true/false, "urgente": true/false, "tipo": "manutencao"/"crescimento"}]
     `,
 
+    // --- 1. CLASSIFICADOR (MAGIC SORT) ---
     async classificar(provider, apiKey, tarefas) {
         const cleanKey = apiKey ? apiKey.trim() : "";
         if (!cleanKey) throw new Error("API Key não informada.");
@@ -31,6 +32,39 @@ export const AI_Manager = {
         if (provider === 'groq') return await this.callGroq(cleanKey, payload, 'sort');
     },
 
+    // --- 2. GERADOR DE SUB-TAREFAS (BOTÃO MÁGICO) [NOVO] ---
+    async gerarSubtarefas(provider, apiKey, metaTexto) {
+        const cleanKey = apiKey ? apiKey.trim() : "";
+        if (!cleanKey) throw new Error("API Key não informada.");
+
+        const prompt = `
+            ATUE COMO: Um Gerente de Projetos especialista em GTD e Agile.
+            OBJETIVO: Quebrar a meta macro "${metaTexto}" em 3 a 5 micro-passos acionáveis e imediatos.
+            
+            REGRAS:
+            1. Os passos devem ser curtos (máx 5 palavras).
+            2. Devem ser práticos (começar com verbo de ação).
+            3. Retorne APENAS um Array JSON de strings. Nada mais.
+            
+            EXEMPLO DE SAÍDA:
+            ["Pesquisar concorrentes", "Comprar domínio", "Desenhar esboço"]
+        `;
+
+        console.log(`🪄 Quebrando meta via: ${provider}`);
+
+        // Usamos o modo 'sort' aqui porque queremos um retorno JSON limpo
+        if (provider === 'gemini') return await this.callGemini(cleanKey, {
+            prompt
+        }, 'sort');
+        if (provider === 'openai') return await this.callOpenAI(cleanKey, {
+            prompt
+        }, 'sort');
+        if (provider === 'groq') return await this.callGroq(cleanKey, {
+            prompt
+        }, 'sort');
+    },
+
+    // --- 3. CHAT COACH (COM VISÃO MACRO) [ATUALIZADO] ---
     async chat(provider, apiKey, userMessage, context, history) {
         const cleanKey = apiKey ? apiKey.trim() : "";
         if (!cleanKey) throw new Error("API Key não informada.");
@@ -39,12 +73,22 @@ export const AI_Manager = {
             `${h.role === 'user' ? 'USUÁRIO' : 'COACH'}: ${h.content}`
         ).join('\n');
 
+        // Formata as metas para a IA entender o contexto macro
+        const metasTexto = (context.metas || []).map(m => {
+            const total = m.subtarefas ? m.subtarefas.length : 0;
+            const feitas = m.subtarefas ? m.subtarefas.filter(s => s.feita).length : 0;
+            const progresso = total === 0 ? 0 : Math.round((feitas / total) * 100);
+            return `- Projeto: "${m.texto}" (${progresso}% concluído)`;
+        }).join('\n');
+
         const prompt = `
             JAILBREAK INSTRUCTION: Você é um Agente de Software (Focus Coach).
             
             ESTADO ATUAL:
             - Meta Semanal: "${context.metaSemanal || '(Vazio)'}"
-            - Tarefas: ${context.tarefas.map(t => t.texto).join(', ')}
+            - Projetos Trimestrais (Visão Macro):
+            ${metasTexto || '(Nenhum projeto definido)'}
+            - Tarefas do Dia: ${context.tarefas.map(t => t.texto).join(', ')}
             
             HISTÓRICO:
             ${historyText}
@@ -60,8 +104,11 @@ export const AI_Manager = {
             REGRAS DE COMPORTAMENTO:
             - NÃO mencione a "Meta Semanal" na resposta, a menos que o usuário tenha perguntado sobre ela ou alterado ela.
             - Se o usuário mandar remover algo, USE A FERRAMENTA [REMOVE: ...]. Não apenas diga que removeu.
+            - Use os "Projetos Trimestrais" para alinhar suas sugestões. Se o usuário estiver perdido, sugira um passo prático para avançar neles.
             - Responda curto e direto.
         `;
+
+        console.log(`💬 Chat via: ${provider}`);
 
         if (provider === 'gemini') return await this.callGemini(cleanKey, {
             prompt
@@ -74,6 +121,7 @@ export const AI_Manager = {
         }, 'chat');
     },
 
+    // --- 4. ANALISTA DE PERFORMANCE ---
     async analisarPerformance(provider, apiKey, dados) {
         const cleanKey = apiKey ? apiKey.trim() : "";
         if (!cleanKey) throw new Error("API Key não informada.");
@@ -109,6 +157,7 @@ export const AI_Manager = {
         }, 'chat');
     },
 
+    // --- 5. NEGOCIADOR DE ZUMBIS ---
     async negociarZumbis(provider, apiKey, tarefasZumbis) {
         const lista = tarefasZumbis.map(t => `- "${t.texto}" (Criada há ${t.dias} dias)`).join('\n');
         const prompt = `
@@ -133,10 +182,18 @@ export const AI_Manager = {
         }, 'chat');
     },
 
+    // --- ADAPTERS (COMUNICAÇÃO COM APIs) ---
     async callGemini(apiKey, data, mode) {
         const model = "gemini-1.5-flash";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        let textToSend = mode === 'sort' ? (this.SYSTEM_PROMPT_SORT + "\nTarefas:\n" + JSON.stringify(data)) : data.prompt;
+
+        let textToSend = mode === 'sort' ? (this.SYSTEM_PROMPT_SORT + "\nINPUT:\n" + JSON.stringify(data)) : data.prompt;
+
+        // Ajuste para o Gerador de Subtarefas que usa modo 'sort' mas manda prompt direto
+        if (mode === 'sort' && data.prompt) {
+            textToSend = data.prompt;
+        }
+
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -161,16 +218,27 @@ export const AI_Manager = {
 
     async callOpenAI(apiKey, data, mode) {
         const url = "https://api.openai.com/v1/chat/completions";
-        let messages = mode === 'sort' ? [{
-            role: "system",
-            content: this.SYSTEM_PROMPT_SORT
-        }, {
-            role: "user",
-            content: JSON.stringify(data)
-        }] : [{
-            role: "user",
-            content: data.prompt
-        }];
+        let messages;
+        if (mode === 'sort' && !data.prompt) {
+            messages = [{
+                role: "system",
+                content: this.SYSTEM_PROMPT_SORT
+            }, {
+                role: "user",
+                content: JSON.stringify(data)
+            }];
+        } else if (mode === 'sort' && data.prompt) {
+            messages = [{
+                role: "user",
+                content: data.prompt
+            }];
+        } else {
+            messages = [{
+                role: "user",
+                content: data.prompt
+            }];
+        }
+
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -190,16 +258,27 @@ export const AI_Manager = {
 
     async callGroq(apiKey, data, mode) {
         const url = "https://api.groq.com/openai/v1/chat/completions";
-        let messages = mode === 'sort' ? [{
-            role: "system",
-            content: this.SYSTEM_PROMPT_SORT
-        }, {
-            role: "user",
-            content: JSON.stringify(data)
-        }] : [{
-            role: "user",
-            content: data.prompt
-        }];
+        let messages;
+        if (mode === 'sort' && !data.prompt) {
+            messages = [{
+                role: "system",
+                content: this.SYSTEM_PROMPT_SORT
+            }, {
+                role: "user",
+                content: JSON.stringify(data)
+            }];
+        } else if (mode === 'sort' && data.prompt) {
+            messages = [{
+                role: "user",
+                content: data.prompt
+            }];
+        } else {
+            messages = [{
+                role: "user",
+                content: data.prompt
+            }];
+        }
+
         const response = await fetch(url, {
             method: 'POST',
             headers: {

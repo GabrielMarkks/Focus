@@ -4,6 +4,18 @@ import {
 import confetti from 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/+esm';
 
 export const View = {
+    // --- SEGURANÇA (ANTI-XSS) ---
+    escapeHTML(str) {
+        if (!str) return "";
+        return String(str).replace(/[&<>'"]/g, tag => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[tag]));
+    },
+
     els: {
         onboard: document.getElementById('view-onboarding'),
         dash: document.getElementById('view-dashboard'),
@@ -19,6 +31,8 @@ export const View = {
     },
     currentSound: null,
     charts: {},
+
+
 
     toggleModal(modalId, action = 'show') {
         const el = document.getElementById(modalId);
@@ -148,10 +162,33 @@ export const View = {
             q4: 0
         };
 
+        // --- ATUALIZAÇÃO DO CARD DA META DA SEMANA ---
         const metaEl = document.getElementById('texto-meta-semanal');
+        const metaObj = usuario.metaSemanal || { texto: "", subtarefas: [] };
+        const textoMeta = typeof metaObj === 'string' ? metaObj : metaObj.texto;
+
         if (metaEl) {
-            metaEl.innerText = usuario.metaSemanal || "🎯 Clique para definir seu Foco Semanal";
-            metaEl.style.opacity = usuario.metaSemanal ? "1" : "0.5";
+            // Calcula Progresso
+            let htmlProgresso = '';
+            if (metaObj.subtarefas && metaObj.subtarefas.length > 0) {
+                const total = metaObj.subtarefas.length;
+                const feitas = metaObj.subtarefas.filter(s => s.feita).length;
+                const pct = Math.round((feitas / total) * 100);
+                let cor = 'bg-primary';
+                if (pct === 100) cor = 'bg-success';
+
+                htmlProgresso = `
+                    <div class="progress mt-2" style="height: 4px; width: 100%; max-width: 200px;">
+                        <div class="progress-bar ${cor}" role="progressbar" style="width: ${pct}%"></div>
+                    </div>
+                    <small class="text-muted" style="font-size: 0.7rem;">${pct}% concluído</small>
+                `;
+            }
+
+            metaEl.innerHTML = `
+                <div class="${textoMeta ? '' : 'opacity-50'}">${textoMeta || "🎯 Clique para definir seu Foco Semanal"}</div>
+                ${htmlProgresso}
+            `;
         }
 
         (usuario.tarefas || []).forEach(t => {
@@ -163,7 +200,7 @@ export const View = {
                     ? `<button class="btn btn-sm btn-outline-info rounded-circle" onclick="App.Controller.iniciarProcessamentoInbox(${t.id})"><i class="ph ph-list-plus"></i></button>`
                     : `<button class="btn btn-sm btn-light rounded-circle border shadow-sm" onclick="App.Controller.startFocus(${t.id})"><i class="ph ph-play-fill text-primary"></i></button>`
                 }
-                        <span class="task-text text-truncate">${t.texto}</span>
+                        <span class="task-text text-truncate">${this.escapeHTML(t.texto)}</span>
                         ${!t.isInbox ? badge : ''}
                     </div>
                     <i class="ph ph-trash btn-delete-task ms-2" onclick="App.Controller.delTask(${t.id})"></i>
@@ -218,7 +255,7 @@ export const View = {
                     <div class="d-flex gap-3 align-items-center">
                         <input class="form-check-input mt-0" type="checkbox" ${h.concluidoHoje ? 'checked' : ''} ${!ehDia ? 'disabled' : ''} onchange="App.Controller.toggleHabit(${h.id})" style="cursor: pointer;">
                         <div class="d-flex flex-column" style="line-height: 1.2;">
-                            <span class="${h.concluidoHoje ? 'text-decoration-line-through text-muted' : ''}">${h.texto}</span>
+                            <span class="${h.concluidoHoje ? 'text-decoration-line-through text-muted' : ''}">${this.escapeHTML(h.texto)}</span>
                             <small class="text-muted" style="font-size: 0.7rem;">${icon} Streak: ${h.streak} dias</small>
                         </div>
                     </div>
@@ -232,7 +269,7 @@ export const View = {
     playReward() {
         const winAudio = new Audio(this.ambience.win);
         winAudio.volume = 0.5;
-        winAudio.play().catch(() => {});
+        winAudio.play().catch(() => { });
         const duration = 2000;
         const end = Date.now() + duration;
         (function frame() {
@@ -280,7 +317,7 @@ export const View = {
             this.stopSound();
             this.audio.src = this.ambience[t];
             this.audio.loop = true;
-            this.audio.play().catch(() => {});
+            this.audio.play().catch(() => { });
             this.currentSound = t;
         }
         this.updateSoundBtns();
@@ -335,11 +372,66 @@ export const View = {
     },
 
     showReport(xp, tarefas, streak, dados) {
+        // 1. Dados Básicos
         document.getElementById('review-total-minutos').innerText = xp;
         document.getElementById('review-tarefas-feitas').innerText = tarefas;
         document.getElementById('review-streak').innerText = streak;
+
+        // ---------------------------------------------------------
+        // 2. NOVO: Portfolio de Projetos (Lista Individual)
+        // ---------------------------------------------------------
+        const macroContainer = document.getElementById('macro-analytics');
+        const metas = Model.usuario.metasTrimestrais || [];
+
+        if (metas.length > 0 && macroContainer) {
+            macroContainer.classList.remove('d-none');
+            let htmlProjetos = '';
+
+            metas.forEach(m => {
+                const total = m.subtarefas ? m.subtarefas.length : 0;
+                const feitas = m.subtarefas ? m.subtarefas.filter(s => s.feita).length : 0;
+
+                // Se não tiver subtarefas, considera 0% (ou 100% se o usuário marcou a meta pai como feita, mas vamos focar nos passos)
+                let pct = total === 0 ? 0 : Math.round((feitas / total) * 100);
+
+                // Cor dinâmica
+                let cor = 'bg-primary';
+                if (pct === 100) cor = 'bg-success';
+                else if (pct < 20) cor = 'bg-danger'; // Vermelho se estiver no início
+                else if (pct > 80) cor = 'bg-info';   // Azul claro se estiver quase lá
+
+                htmlProjetos += `
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-bold small text-truncate" style="max-width: 70%;">${m.texto}</span>
+                            <span class="badge bg-light text-dark border">${pct}%</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar ${cor}" role="progressbar" style="width: ${pct}%"></div>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <small class="text-muted" style="font-size: 0.65rem;">${feitas}/${total} passos</small>
+                        </div>
+                    </div>
+                `;
+            });
+
+            macroContainer.innerHTML = `
+                <div class="p-3 bg-body bg-opacity-50 border rounded-4 shadow-sm mb-3">
+                    <h6 class="fw-bold text-primary mb-3"><i class="ph ph-kanban me-2"></i>Status dos Projetos</h6>
+                    ${htmlProjetos}
+                </div>
+            `;
+        } else if (macroContainer) {
+            macroContainer.classList.add('d-none');
+        }
+
+        // ---------------------------------------------------------
+        // 3. Feedback e Gráficos (MANTIDOS IGUAIS)
+        // ---------------------------------------------------------
         const tot = dados.q1 + dados.q2 + dados.q3 + dados.q4;
         const fb = document.getElementById('review-feedback');
+
         if (tot === 0) fb.innerHTML = "Sem dados semanais.";
         else {
             const pQ2 = (dados.q2 / tot) * 100;
@@ -353,6 +445,7 @@ export const View = {
                 fb.innerHTML = "Continue registrando.";
             }
         }
+
         if (typeof Chart !== 'undefined') {
             const c1 = document.getElementById('graficoFoco');
             if (c1) {
@@ -367,15 +460,7 @@ export const View = {
                             borderWidth: 0
                         }]
                     },
-                    options: {
-                        responsive: true,
-                        cutout: '75%',
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            }
-                        }
-                    }
+                    options: { responsive: true, cutout: '75%', plugins: { legend: { position: 'bottom' } } }
                 });
             }
             const c2 = document.getElementById('graficoQualidade');
@@ -392,22 +477,162 @@ export const View = {
                             borderRadius: 5
                         }]
                     },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
-                        },
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        }
-                    }
+                    options: { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
                 });
             }
         }
+
         this.toggleModal('modalRelatorio', 'show');
+    },
+
+
+    // --- RENDERIZADOR MACRO FINAL (COM BOTÃO MÁGICO) ---
+    renderTrimestral(metas) {
+        const lista = document.getElementById('lista-metas-macro');
+        if (!lista) return;
+
+        lista.innerHTML = '';
+
+        if (!metas || metas.length === 0) {
+            lista.innerHTML = `
+                <div class="text-center py-5 opacity-50">
+                    <i class="ph ph-telescope fs-1 mb-2"></i>
+                    <p>Defina suas "Big Rocks" (Metas Trimestrais).</p>
+                </div>`;
+            return;
+        }
+
+        metas.forEach(m => {
+            const subs = m.subtarefas || [];
+            const total = subs.length;
+            const feitas = subs.filter(s => s.feita).length;
+            const porcentagem = total === 0 ? 0 : Math.round((feitas / total) * 100);
+
+            let barColor = 'bg-primary';
+            if (porcentagem === 100) barColor = 'bg-success';
+
+            // Lista de Subtarefas
+            let subTasksHTML = '';
+            if (subs.length > 0) {
+                subTasksHTML = `<ul class="list-group list-group-flush mt-3 border rounded-3 overflow-hidden">`;
+                subs.forEach(s => {
+                    subTasksHTML += `
+                        <li class="list-group-item bg-body-secondary d-flex justify-content-between align-items-center py-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <input class="form-check-input mt-0" type="checkbox" ${s.feita ? 'checked' : ''} 
+                                    onchange="App.Controller.toggleSubTarefa(${m.id}, ${s.id})" style="cursor: pointer;">
+                                <span class="${s.feita ? 'text-decoration-line-through text-muted' : ''} small">${s.texto}</span>
+                            </div>
+                            <i class="ph ph-x text-danger opacity-25 hover-opacity-100" style="cursor: pointer; font-size: 0.8rem;" 
+                                onclick="App.Controller.delSubTarefa(${m.id}, ${s.id})"></i>
+                        </li>
+                    `;
+                });
+                subTasksHTML += `</ul>`;
+            } else {
+                // Empty State com convite
+                subTasksHTML = `
+                    <div class="alert alert-light border border-warning mt-3 mb-0 d-flex align-items-center gap-2 p-2">
+                        <i class="ph ph-lightbulb text-warning"></i>
+                        <small class="text-muted lh-1">Use a varinha mágica para criar o plano! 👉</small>
+                    </div>
+                `;
+            }
+
+            const html = `
+                <div class="card mb-3 border-0 shadow-sm overflow-hidden animate-fade-in">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="w-100">
+                                <h5 class="fw-bold mb-1 text-primary text-truncate">${this.escapeHTML(s.texto)}</h5>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-light text-dark border">${porcentagem}%</span>
+                                </div>
+                            </div>
+                            <button class="btn btn-icon text-danger opacity-25 hover-opacity-100" 
+                                onclick="App.Controller.delMetaMacro(${m.id})">
+                                <i class="ph ph-trash"></i>
+                            </button>
+                        </div>
+
+                        <div class="progress" style="height: 6px; border-radius: 4px;">
+                            <div class="progress-bar ${barColor}" role="progressbar" style="width: ${porcentagem}%"></div>
+                        </div>
+
+                        ${subTasksHTML}
+
+                        <div class="input-group input-group-sm mt-3">
+                            <span class="input-group-text bg-transparent border-0 ps-0"><i class="ph ph-arrow-elbow-down-right text-muted"></i></span>
+                            <input type="text" id="input-sub-${m.id}" class="form-control bg-body-tertiary border-0 rounded-pill" 
+                                placeholder="Adicionar micro-passo..." 
+                                onkeypress="if(event.key==='Enter') App.Controller.adicionarSubTarefa(${m.id})">
+                            
+                            <button class="btn btn-sm btn-light rounded-circle ms-1" onclick="App.Controller.adicionarSubTarefa(${m.id})" title="Adicionar">
+                                <i class="ph ph-plus"></i>
+                            </button>
+                            
+                            <button id="btn-magic-${m.id}" class="btn btn-sm btn-primary rounded-circle ms-1 text-white shadow-sm" 
+                                onclick="App.Controller.autoQuebrarMeta(${m.id})" title="Gerar passos com IA">
+                                <i class="ph ph-magic-wand"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            lista.innerHTML += html;
+        });
+    },
+
+    // --- RENDERIZA O MODAL DA SEMANA ---
+    renderModalMetaSemanal() {
+        const container = document.getElementById('container-meta-semanal');
+        if (!container) return;
+
+        const meta = Model.usuario.metaSemanal || { texto: "", subtarefas: [] };
+
+        // Input do Título
+        let html = `
+            <label class="form-label text-muted small fw-bold text-uppercase">Sua Prioridade #1</label>
+            <div class="input-group mb-3">
+                <input type="text" id="input-meta-semanal-titulo" class="form-control form-control-lg fw-bold text-primary" 
+                    value="${this.escapeHTML(s.texto)}" placeholder="Ex: Lançar Site v1..." 
+                    onblur="App.Controller.salvarTextoMetaSemanal()">
+            </div>
+        `;
+
+        // Lista de Sub-tarefas
+        if (meta.subtarefas && meta.subtarefas.length > 0) {
+            html += `<ul class="list-group list-group-flush border rounded-3 mb-3">`;
+            meta.subtarefas.forEach(s => {
+                html += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <input class="form-check-input mt-0" type="checkbox" ${s.feita ? 'checked' : ''} 
+                                onchange="App.Controller.toggleSubTarefaSemanal(${s.id})" style="cursor: pointer;">
+                            <span class="${s.feita ? 'text-decoration-line-through text-muted' : ''}">${s.texto}</span>
+                        </div>
+                        <i class="ph ph-x text-danger opacity-25 hover-opacity-100" style="cursor: pointer;" 
+                            onclick="App.Controller.delSubTarefaSemanal(${s.id})"></i>
+                    </li>
+                `;
+            });
+            html += `</ul>`;
+        } else {
+            html += `<p class="text-muted small mb-3"><i class="ph ph-info me-1"></i> Adicione passos para completar essa semana.</p>`;
+        }
+
+        // Input de Nova Sub-tarefa
+        html += `
+            <div class="input-group input-group-sm">
+                <input type="text" id="input-sub-semanal" class="form-control bg-body-tertiary border-0 rounded-pill" 
+                    placeholder="Adicionar passo..." 
+                    onkeypress="if(event.key==='Enter') App.Controller.addSubTarefaSemanal()">
+                <button class="btn btn-sm btn-light rounded-circle ms-1" onclick="App.Controller.addSubTarefaSemanal()">
+                    <i class="ph ph-plus"></i>
+                </button>
+            </div>
+        `;
+
+        container.innerHTML = html;
     }
 };

@@ -1,4 +1,5 @@
-const CACHE_NAME = 'focus-coach-themas'; // BUMP VERSION
+const CACHE_NAME = 'focus-coach-v1.0-production';
+
 const ASSETS = [
     './',
     './index.html',
@@ -7,13 +8,13 @@ const ASSETS = [
     './js/model.js',
     './js/view.js',
     './js/controller.js',
-    './js/ai.js',
-    './manifest.json', // Adicionado
+    './js/ai.js', // Importante garantir que o cérebro novo esteja aqui
+    './manifest.json',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',
     'https://unpkg.com/@phosphor-icons/web',
     'https://cdn.jsdelivr.net/npm/chart.js',
-    'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js' // Adicionado explicitamente
+    'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js'
 ];
 
 self.addEventListener('install', (e) => {
