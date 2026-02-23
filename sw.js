@@ -1,14 +1,16 @@
-const CACHE_NAME = 'focus-coach-v1.0-production';
+const CACHE_NAME = 'focus-coach-v1.1.2-indexeddb';
 
 const ASSETS = [
     './',
     './index.html',
+    './app.html',
     './css/style.css',
     './js/main.js',
     './js/model.js',
     './js/view.js',
     './js/controller.js',
     './js/ai.js', // Importante garantir que o cérebro novo esteja aqui
+    './js/timerWorker.js',
     './manifest.json',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',

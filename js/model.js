@@ -1,8 +1,15 @@
+import {
+    supabase
+} from './supabase.js';
+
 export const Model = {
     usuario: {
         nome: "",
         proposito: "",
-        metaSemanal: "",
+        metaSemanal: {
+            texto: "",
+            subtarefas: []
+        },
         metasTrimestrais: [],
         papeis: [],
         tarefas: [],
@@ -28,360 +35,463 @@ export const Model = {
         tarefaId: null,
         startTime: null
     },
-    citacoes: ["Menos, porém melhor.", "O foco é a nova moeda.", "1% melhor todo dia.", "Feito é melhor que perfeito.", "Sua atenção é seu maior ativo."],
+    citacoes: ["Menos, porém melhor.", "O foco é a nova moeda.", "1% melhor todo dia.", "Feito é melhor que perfeito.", "A tua atenção é o teu maior ativo."],
+    session: null,
 
-    salvar() {
-        try {
-            localStorage.setItem('focusApp_user', JSON.stringify(this.usuario));
-            localStorage.setItem('focusApp_chat', JSON.stringify(this.chatMemory));
-        } catch (e) {
-            console.error(e);
-        }
+    obterFraseAleatoria() {
+        return this.citacoes[Math.floor(Math.random() * this.citacoes.length)];
     },
 
-    carregar() {
-        const d = localStorage.getItem('focusApp_user');
-        if (d) {
-            try {
-                const p = JSON.parse(d);
-                this.usuario = {
-                    ...this.usuario,
-                    ...p
-                };
-                ['tarefas', 'historico', 'habitos'].forEach(k => {
-                    if (!Array.isArray(this.usuario[k])) this.usuario[k] = [];
+    // ==========================================================
+    // --- 1. AUTENTICAÇÃO SUPABASE ---
+    // ==========================================================
+    async verificarSessao() {
+        const {
+            data
+        } = await supabase.auth.getSession();
+        this.session = data.session;
+        return this.session;
+    },
+    async cadastrar(email, senha) {
+        const {
+            data,
+            error
+        } = await supabase.auth.signUp({
+            email,
+            password: senha
+        });
+        if (error) throw error;
+        return data;
+    },
+    async entrar(email, senha) {
+        const {
+            data,
+            error
+        } = await supabase.auth.signInWithPassword({
+            email,
+            password: senha
+        });
+        if (error) throw error;
+        return data;
+    },
+
+    // ==========================================================
+    // --- 2. CARREGAMENTO (NUVEM -> ECRÃ) ---
+    // ==========================================================
+    async carregar() {
+        if (!this.session) return false;
+        const uid = this.session.user.id;
+
+        try {
+            // 1. Perfil Principal
+            let {
+                data: perfil
+            } = await supabase.from('perfis').select('*').eq('id', uid).single();
+            if (!perfil) {
+                // Primeiro acesso na nuvem: Cria perfil em branco
+                await supabase.from('perfis').insert({
+                    id: uid,
+                    config: this.usuario.config
                 });
-                if (!this.usuario.config) this.usuario.config = {};
-                if (!this.usuario.config.provider) this.usuario.config.provider = 'gemini';
-            } catch (e) { }
-        }
+                return false; // Retorna false para mostrar o ecrã de Onboarding
+            }
+            this.usuario.nome = perfil.nome || "";
+            this.usuario.proposito = perfil.proposito || "";
+            this.usuario.papeis = perfil.papeis || [];
+            this.usuario.config = perfil.config || this.usuario.config;
 
-        const c = localStorage.getItem('focusApp_chat');
-        if (c) {
-            try {
-                const chatData = JSON.parse(c);
-                // 30 min de validade para a memória do chat
-                if (Date.now() - chatData.lastActive < 1800000) {
-                    this.chatMemory = chatData;
-                } else {
-                    this.chatMemory = {
-                        history: [],
-                        lastActive: Date.now()
-                    };
-                }
-            } catch (e) { }
-        }
+            // 2. Tarefas e Histórico (Matriz e Inbox)
+            const {
+                data: tarefasDb
+            } = await supabase.from('tarefas').select('*').eq('user_id', uid);
+            this.usuario.tarefas = (tarefasDb || []).filter(t => !t.feita).map(t => ({
+                id: t.id,
+                texto: t.texto,
+                urgente: t.urgente,
+                importante: t.importante,
+                tipo: t.tipo,
+                isInbox: t.is_inbox,
+                feita: t.feita,
+                tempoInvestido: t.tempo_investido,
+                criadaEm: new Date(t.criada_em).getTime()
+            }));
+            this.usuario.historico = (tarefasDb || []).filter(t => t.feita).map(t => ({
+                id: t.id,
+                texto: t.texto,
+                tempoInvestido: t.tempo_investido,
+                concluidaEm: new Date(t.concluida_em).getTime()
+            }));
 
-        // --- MIGRAÇÃO AUTOMÁTICA (String -> Objeto) ---
-        if (typeof this.usuario.metaSemanal === 'string') {
-            this.usuario.metaSemanal = {
-                texto: this.usuario.metaSemanal,
+            // 3. Hábitos Diários
+            const {
+                data: habitosDb
+            } = await supabase.from('habitos').select('*').eq('user_id', uid);
+            this.usuario.habitos = (habitosDb || []).map(h => ({
+                id: h.id,
+                texto: h.texto,
+                dias: h.dias,
+                streak: h.streak,
+                concluidoHoje: h.concluido_hoje
+            }));
+
+            // 4. Metas Trimestrais e Subtarefas
+            const {
+                data: metasDb
+            } = await supabase.from('metas').select('*, subtarefas_metas(*)').eq('user_id', uid);
+            this.usuario.metasTrimestrais = (metasDb || []).map(m => ({
+                id: m.id,
+                texto: m.texto,
+                concluida: m.concluida,
+                subtarefas: m.subtarefas_metas.map(s => ({
+                    id: s.id,
+                    texto: s.texto,
+                    feita: s.feita
+                }))
+            }));
+
+            this.usuario.metaSemanal = this.usuario.config.metaSemanal || {
+                texto: "",
                 subtarefas: []
             };
+
+            // 5. Histórico do Chat IA
+            const {
+                data: chatDb
+            } = await supabase.from('chat_history').select('*').eq('user_id', uid).order('criado_em', {
+                ascending: true
+            });
+            this.chatMemory.history = (chatDb || []).map(c => ({
+                role: c.role,
+                content: c.content
+            }));
+
+            return !!this.usuario.nome; // Se tem nome guardado, entra direto no Dashboard
+        } catch (e) {
+            console.error("Erro ao puxar dados do Supabase:", e);
+            return false;
         }
-        if (!this.usuario.metaSemanal) {
-            this.usuario.metaSemanal = { texto: "", subtarefas: [] };
-        }
-        this.checkDia();
-        return !!d;
     },
 
+    // ==========================================================
+    // --- 3. SINCRONIZAÇÃO DE PERFIL (BACKGROUND) ---
+    // ==========================================================
+    salvarPerfilBackground() {
+        if (!this.session) return;
+        this.usuario.config.metaSemanal = this.usuario.metaSemanal;
+        supabase.from('perfis').update({
+            nome: this.usuario.nome,
+            proposito: this.usuario.proposito,
+            papeis: this.usuario.papeis,
+            config: this.usuario.config
+        }).eq('id', this.session.user.id).then(); // `.then()` faz o sync acontecer em background
+    },
+    salvar() {
+        this.salvarPerfilBackground();
+    },
+    atualizarUsuario(chave, valor) {
+        this.usuario[chave] = valor;
+        this.salvarPerfilBackground();
+    },
+
+    // ==========================================================
+    // --- 4. GESTÃO DE TAREFAS (OPTIMISTIC UI) ---
+    // ==========================================================
+    obterTarefa(id) {
+        return this.usuario.tarefas.find(t => t.id === id);
+    },
+    addTarefa(texto, importante, urgente, tipo, isInbox = false) {
+        const id = crypto.randomUUID();
+        const novaTarefa = {
+            id,
+            texto,
+            importante,
+            urgente,
+            tipo,
+            isInbox,
+            feita: false,
+            tempoInvestido: 0,
+            criadaEm: Date.now()
+        };
+
+        // Atualiza a UI imediatamente
+        this.usuario.tarefas.push(novaTarefa);
+
+        // Envia para a base de dados
+        if (this.session) {
+            supabase.from('tarefas').insert({
+                id,
+                user_id: this.session.user.id,
+                texto,
+                urgente,
+                importante,
+                tipo,
+                is_inbox: isInbox
+            }).then();
+        }
+    },
+    delTarefa(id) {
+        this.usuario.tarefas = this.usuario.tarefas.filter(t => t.id !== id);
+        if (this.session) supabase.from('tarefas').delete().eq('id', id).then();
+    },
+    concluirTarefa(id, minutos) {
+        const t = this.usuario.tarefas.find(x => x.id === id);
+        if (t) {
+            t.feita = true;
+            t.tempoInvestido += minutos;
+            t.concluidaEm = Date.now();
+            this.usuario.historico.push(t);
+            this.usuario.tarefas = this.usuario.tarefas.filter(x => x.id !== id);
+
+            if (this.session) {
+                supabase.from('tarefas').update({
+                    feita: true,
+                    tempo_investido: t.tempoInvestido,
+                    concluida_em: new Date().toISOString()
+                }).eq('id', id).then();
+            }
+        }
+    },
+    moverInboxParaMatriz(id, importante, urgente, tipo) {
+        const t = this.obterTarefa(id);
+        if (t) {
+            t.importante = importante;
+            t.urgente = urgente;
+            t.tipo = tipo;
+            t.isInbox = false;
+            if (this.session) supabase.from('tarefas').update({
+                importante,
+                urgente,
+                tipo,
+                is_inbox: false
+            }).eq('id', id).then();
+        }
+    },
+    encerrarDia() {
+        let migradas = 0;
+        this.usuario.tarefas.forEach(t => {
+            if (!t.feita) {
+                t.adiada = (t.adiada || 0) + 1;
+                migradas++;
+            }
+        });
+        this.usuario.habitos.forEach(h => {
+            h.concluidoHoje = false;
+        });
+        this.salvarPerfilBackground();
+
+        // Reset diário dos hábitos na nuvem
+        if (this.session) supabase.from('habitos').update({
+            concluido_hoje: false
+        }).eq('user_id', this.session.user.id).then();
+
+        return {
+            migradas
+        };
+    },
+
+    // ==========================================================
+    // --- 5. HÁBITOS ---
+    // ==========================================================
+    addHabito(texto, dias) {
+        const id = crypto.randomUUID();
+        this.usuario.habitos.push({
+            id,
+            texto,
+            dias,
+            streak: 0,
+            concluidoHoje: false
+        });
+        if (this.session) supabase.from('habitos').insert({
+            id,
+            user_id: this.session.user.id,
+            texto,
+            dias
+        }).then();
+    },
+    toggleHabito(id) {
+        const h = this.usuario.habitos.find(x => x.id === id);
+        if (h) {
+            h.concluidoHoje = !h.concluidoHoje;
+            if (h.concluidoHoje) {
+                h.streak++;
+                h.ultimaData = new Date().toLocaleDateString();
+            } else h.streak = Math.max(0, h.streak - 1);
+
+            if (this.session) supabase.from('habitos').update({
+                concluido_hoje: h.concluidoHoje,
+                streak: h.streak,
+                ultima_data: new Date().toISOString()
+            }).eq('id', id).then();
+        }
+    },
+    delHabito(id) {
+        this.usuario.habitos = this.usuario.habitos.filter(h => h.id !== id);
+        if (this.session) supabase.from('habitos').delete().eq('id', id).then();
+    },
+
+    // ==========================================================
+    // --- 6. METAS TRIMESTRAIS (VISION) ---
+    // ==========================================================
+    addMetaTrimestral(texto) {
+        const id = crypto.randomUUID();
+        this.usuario.metasTrimestrais.push({
+            id,
+            texto,
+            concluida: false,
+            subtarefas: []
+        });
+        if (this.session) supabase.from('metas').insert({
+            id,
+            user_id: this.session.user.id,
+            texto
+        }).then();
+    },
+    delMetaTrimestral(id) {
+        this.usuario.metasTrimestrais = this.usuario.metasTrimestrais.filter(m => m.id !== id);
+        if (this.session) supabase.from('metas').delete().eq('id', id).then();
+    },
+    toggleMetaTrimestral(id) {
+        const m = this.usuario.metasTrimestrais.find(x => x.id === id);
+        if (m) {
+            m.concluida = !m.concluida;
+            if (this.session) supabase.from('metas').update({
+                concluida: m.concluida
+            }).eq('id', id).then();
+        }
+    },
+    addSubTarefaMeta(metaId, texto) {
+        const m = this.usuario.metasTrimestrais.find(x => x.id === metaId);
+        if (m) {
+            const subId = crypto.randomUUID();
+            m.subtarefas = m.subtarefas || [];
+            m.subtarefas.push({
+                id: subId,
+                texto,
+                feita: false
+            });
+            if (this.session) supabase.from('subtarefas_metas').insert({
+                id: subId,
+                meta_id: metaId,
+                texto
+            }).then();
+        }
+    },
+    toggleSubTarefaMeta(metaId, subId) {
+        const m = this.usuario.metasTrimestrais.find(x => x.id === metaId);
+        if (m && m.subtarefas) {
+            const s = m.subtarefas.find(x => x.id === subId);
+            if (s) {
+                s.feita = !s.feita;
+                if (this.session) supabase.from('subtarefas_metas').update({
+                    feita: s.feita
+                }).eq('id', subId).then();
+            }
+        }
+    },
+    delSubTarefaMeta(metaId, subId) {
+        const m = this.usuario.metasTrimestrais.find(x => x.id === metaId);
+        if (m && m.subtarefas) {
+            m.subtarefas = m.subtarefas.filter(x => x.id !== subId);
+            if (this.session) supabase.from('subtarefas_metas').delete().eq('id', subId).then();
+        }
+    },
+
+    // ==========================================================
+    // --- 7. META SEMANAL ---
+    // ==========================================================
+    addSubTarefaSemanal(texto) {
+        if (typeof this.usuario.metaSemanal !== 'object') this.usuario.metaSemanal = {
+            texto: "",
+            subtarefas: []
+        };
+        this.usuario.metaSemanal.subtarefas.push({
+            id: crypto.randomUUID(),
+            texto,
+            feita: false
+        });
+        this.salvarPerfilBackground();
+    },
+    toggleSubTarefaSemanal(id) {
+        if (this.usuario.metaSemanal && this.usuario.metaSemanal.subtarefas) {
+            const s = this.usuario.metaSemanal.subtarefas.find(x => x.id === id);
+            if (s) {
+                s.feita = !s.feita;
+                this.salvarPerfilBackground();
+            }
+        }
+    },
+    delSubTarefaSemanal(id) {
+        if (this.usuario.metaSemanal && this.usuario.metaSemanal.subtarefas) {
+            this.usuario.metaSemanal.subtarefas = this.usuario.metaSemanal.subtarefas.filter(x => x.id !== id);
+            this.salvarPerfilBackground();
+        }
+    },
+    atualizarTextoMetaSemanal(texto) {
+        if (typeof this.usuario.metaSemanal !== 'object') this.usuario.metaSemanal = {
+            texto: "",
+            subtarefas: []
+        };
+        this.usuario.metaSemanal.texto = texto;
+        this.salvarPerfilBackground();
+    },
+
+    // ==========================================================
+    // --- 8. ANALYTICS ---
+    // ==========================================================
+    getXP() {
+        return this.usuario.historico.reduce((acc, t) => acc + (t.tempoInvestido || 0), 0);
+    },
+    getNivel() {
+        const xp = this.getXP();
+        if (xp < 100) return {
+            t: "Iniciante",
+            i: "🌱"
+        };
+        if (xp < 500) return {
+            t: "Focado",
+            i: "🔥"
+        };
+        if (xp < 1500) return {
+            t: "Produtivo",
+            i: "⚡"
+        };
+        return {
+            t: "Lenda",
+            i: "👑"
+        };
+    },
+    getMinHoje() {
+        const h = new Date().toLocaleDateString();
+        return this.usuario.historico.filter(t => new Date(t.concluidaEm).toLocaleDateString() === h)
+            .reduce((acc, t) => acc + (t.tempoInvestido || 0), 0);
+    },
+    getDadosGraf() {
+        const msSemana = 7 * 24 * 60 * 60 * 1000;
+        const agora = Date.now();
+        const hs = this.usuario.historico.filter(t => (agora - t.concluidaEm) <= msSemana);
+        const ts = this.usuario.tarefas;
+        return {
+            q1: ts.filter(t => t.urgente && t.importante && !t.isInbox).length,
+            q2: ts.filter(t => !t.urgente && t.importante && !t.isInbox).length,
+            q3: ts.filter(t => t.urgente && !t.importante && !t.isInbox).length,
+            q4: ts.filter(t => !t.urgente && !t.importante && !t.isInbox).length,
+            manut: hs.filter(t => t.tipo === 'manutencao').reduce((acc, t) => acc + (t.tempoInvestido || 0), 0),
+            cresc: hs.filter(t => t.tipo === 'crescimento').reduce((acc, t) => acc + (t.tempoInvestido || 0), 0)
+        };
+    },
+
+    // ==========================================================
+    // --- 9. CHAT DA IA (PERSISTÊNCIA) ---
+    // ==========================================================
     pushChatMessage(role, content) {
         this.chatMemory.history.push({
             role,
             content
         });
-        if (this.chatMemory.history.length > 10) this.chatMemory.history = this.chatMemory.history.slice(-10);
-        this.chatMemory.lastActive = Date.now();
-        this.salvar();
-    },
-
-    checkDia() {
-        const hoje = new Date().toDateString();
-        const ontem = new Date();
-        ontem.setDate(ontem.getDate() - 1);
-        const ontemStr = ontem.toDateString();
-        const diaSemanaOntem = ontem.getDay();
-
-        let mudou = false;
-        if (Array.isArray(this.usuario.habitos)) {
-            this.usuario.habitos.forEach(h => {
-                // Reseta status diário
-                if (h.ultimaData !== hoje) {
-                    h.concluidoHoje = false;
-                    mudou = true;
-                }
-                // Verifica quebra de streak
-                if (h.ultimaData !== ontemStr && h.ultimaData !== hoje) {
-                    if (h.dias && h.dias.includes(diaSemanaOntem)) {
-                        h.streak = 0;
-                        mudou = true;
-                    }
-                }
-            });
-        }
-        if (mudou) this.salvar();
-    },
-
-    atualizarUsuario(k, v) {
-        this.usuario[k] = v;
-        this.salvar();
-    },
-
-    // --- TAREFAS ---
-    addTarefa(texto, urgente, importante, tipo, isInbox = false) {
-        if (!Array.isArray(this.usuario.tarefas)) this.usuario.tarefas = [];
-        const novaTarefa = {
-            id: crypto.randomUUID(),
-            texto: texto,
-            urgente: urgente,
-            importante: importante,
-            tipo: tipo,
-            feita: false,
-            isInbox: isInbox,
-            tempoInvestido: 0,
-            criadaEm: Date.now()
-        };
-        this.usuario.tarefas.push(novaTarefa);
-        this.salvar();
-        return novaTarefa;
-    },
-    atualizarTarefa(id, dados) {
-        const t = this.usuario.tarefas.find(task => String(task.id) === String(id));
-        if (t) {
-            Object.assign(t, dados);
-            this.salvar();
-        }
-    },
-    concluirTarefa(id, minutos) {
-        const idx = this.usuario.tarefas.findIndex(t => String(t.id) === String(id));
-        if (idx !== -1) {
-            const t = this.usuario.tarefas[idx];
-            this.usuario.historico.push({
-                ...t,
-                dataConclusao: new Date().toISOString(),
-                tempoInvestido: minutos,
-                feita: true
-            });
-            this.usuario.tarefas.splice(idx, 1);
-            this.salvar();
-        }
-    },
-    delTarefa(id) {
-        this.usuario.tarefas = this.usuario.tarefas.filter(t => String(t.id) !== String(id));
-        this.salvar();
-    },
-    encerrarDia() {
-        const pendentes = this.usuario.tarefas.filter(t => !t.feita);
-        const concluidas = this.usuario.tarefas.filter(t => t.feita);
-
-        this.usuario.tarefas = pendentes.map(t => ({
-            ...t,
-            adiada: (t.adiada || 0) + 1
-        }));
-        this.salvar();
-        return {
-            migradas: pendentes.length,
-            limpas: concluidas.length
-        };
-    },
-    obterTarefa(id) {
-        return this.usuario.tarefas.find(t => String(t.id) === String(id)) || null;
-    },
-    moverInboxParaMatriz(id, imp, urg, tipo) {
-        const t = this.obterTarefa(id);
-        if (t) {
-            t.isInbox = false;
-            t.importante = imp;
-            t.urgente = urg;
-            t.tipo = tipo;
-            this.salvar();
-        }
-    },
-
-    // --- HÁBITOS ---
-    addHabito(texto, dias = [0, 1, 2, 3, 4, 5, 6]) {
-        if (!Array.isArray(this.usuario.habitos)) this.usuario.habitos = [];
-        this.usuario.habitos.push({
-            id: crypto.randomUUID(),
-            texto: texto,
-            dias: dias,
-            streak: 0,
-            ultimaData: null,
-            concluidoHoje: false
-        });
-        this.salvar();
-    },
-    toggleHabito(id) {
-        const h = this.usuario.habitos.find(x => x.id == id);
-        if (h) {
-            const hoje = new Date().toDateString();
-            if (!h.concluidoHoje) {
-                h.concluidoHoje = true;
-                h.ultimaData = hoje;
-                h.streak++;
-            } else {
-                h.concluidoHoje = false;
-                h.ultimaData = null;
-                h.streak = Math.max(0, h.streak - 1);
-            }
-            this.salvar();
-        }
-    },
-    delHabito(id) {
-        this.usuario.habitos = this.usuario.habitos.filter(x => x.id != id);
-        this.salvar();
-    },
-
-    // --- ANALYTICS ---
-    getXP() {
-        return (this.usuario.historico || []).reduce((a, b) => a + (b.tempoInvestido || 0), 0);
-    },
-    getMinHoje() {
-        const h = new Date().toDateString();
-        return (this.usuario.historico || []).filter(x => new Date(x.dataConclusao).toDateString() === h).reduce((a, b) => a + (b.tempoInvestido || 0), 0);
-    },
-    getNivel() {
-        const xp = this.getXP();
-        return xp < 60 ? {
-            t: "Iniciante",
-            i: "🌱"
-        } : (xp < 300 ? {
-            t: "Focado",
-            i: "🧘"
-        } : {
-            t: "Lenda",
-            i: "👑"
-        });
-    },
-    getDadosGraf() {
-        let d = {
-            q1: 0,
-            q2: 0,
-            q3: 0,
-            q4: 0,
-            cresc: 0,
-            manut: 0
-        };
-        const last7 = new Date();
-        last7.setDate(last7.getDate() - 7);
-        (this.usuario.historico || []).forEach(h => {
-            if (new Date(h.dataConclusao) >= last7) {
-                const t = h.tempoInvestido || 0;
-                if (h.urgente && h.importante) d.q1 += t;
-                else if (!h.urgente && h.importante) d.q2 += t;
-                else if (h.urgente && !h.importante) d.q3 += t;
-                else d.q4 += t;
-                if (h.tipo === 'crescimento') d.cresc += t;
-                else d.manut += t;
-            }
-        });
-        return d;
-    },
-
-    exportBackup() {
-        return JSON.stringify(this.usuario, null, 2);
-    },
-    importBackup(json) {
-        try {
-            const d = JSON.parse(json);
-            if (d.nome) {
-                this.usuario = d;
-                this.salvar();
-                return true;
-            }
-        } catch (e) { }
-        return false;
-    },
-    obterFraseAleatoria() {
-        return this.citacoes[Math.floor(Math.random() * this.citacoes.length)];
-    },
-
-
-
-    // --- CRUD TRIMESTRAL (ATUALIZADO COM SUB-TAREFAS) ---
-    addMetaTrimestral(texto) {
-        if (!Array.isArray(this.usuario.metasTrimestrais)) this.usuario.metasTrimestrais = [];
-        this.usuario.metasTrimestrais.push({
-            id: crypto.randomUUID(),
-            texto: texto,
-            subtarefas: [], // Array para os passos menores
-            concluida: false
-        });
-        this.salvar();
-    },
-    delMetaTrimestral(id) {
-        this.usuario.metasTrimestrais = this.usuario.metasTrimestrais.filter(x => x.id != id);
-        this.salvar();
-    },
-    // Adicionar Sub-tarefa dentro da Meta
-    addSubTarefaMeta(metaId, textoSub) {
-        const meta = this.usuario.metasTrimestrais.find(m => m.id == metaId);
-        if (meta) {
-            if (!meta.subtarefas) meta.subtarefas = [];
-            meta.subtarefas.push({
-                id: crypto.randomUUID(),
-                texto: textoSub,
-                feita: false
-            });
-            this.salvar();
-        }
-    },
-    // Marcar/Desmarcar Sub-tarefa
-    toggleSubTarefaMeta(metaId, subId) {
-        const meta = this.usuario.metasTrimestrais.find(m => m.id == metaId);
-        if (meta && meta.subtarefas) {
-            const sub = meta.subtarefas.find(s => s.id == subId);
-            if (sub) {
-                sub.feita = !sub.feita;
-                // Opcional: Se todas estiverem feitas, marca a meta pai como feita? 
-                // Por enquanto deixamos manual para o usuário sentir o prazer de concluir a meta grande.
-                this.salvar();
-            }
-        }
-    },
-    // Deletar Sub-tarefa
-    delSubTarefaMeta(metaId, subId) {
-        const meta = this.usuario.metasTrimestrais.find(m => m.id == metaId);
-        if (meta && meta.subtarefas) {
-            meta.subtarefas = meta.subtarefas.filter(s => s.id != subId);
-            this.salvar();
-        }
-    },
-
-    // Adiciona sub-tarefa na meta da semana
-    addSubTarefaSemanal(texto) {
-        // Garante estrutura
-        if (typeof this.usuario.metaSemanal !== 'object') this.usuario.metaSemanal = { texto: "", subtarefas: [] };
-
-        this.usuario.metaSemanal.subtarefas.push({
-            id: crypto.randomUUID(),
-            texto: texto,
-            feita: false
-        });
-        this.salvar();
-    },
-
-    toggleSubTarefaSemanal(id) {
-        if (this.usuario.metaSemanal && this.usuario.metaSemanal.subtarefas) {
-            const sub = this.usuario.metaSemanal.subtarefas.find(s => s.id == id);
-            if (sub) {
-                sub.feita = !sub.feita;
-                this.salvar();
-            }
-        }
-    },
-
-    delSubTarefaSemanal(id) {
-        if (this.usuario.metaSemanal && this.usuario.metaSemanal.subtarefas) {
-            this.usuario.metaSemanal.subtarefas = this.usuario.metaSemanal.subtarefas.filter(s => s.id != id);
-            this.salvar();
-        }
-    },
-
-    atualizarTextoMetaSemanal(texto) {
-        if (typeof this.usuario.metaSemanal !== 'object') this.usuario.metaSemanal = { texto: "", subtarefas: [] };
-        this.usuario.metaSemanal.texto = texto;
-        this.salvar();
+        if (this.session) supabase.from('chat_history').insert({
+            user_id: this.session.user.id,
+            role,
+            content
+        }).then();
     }
 };
