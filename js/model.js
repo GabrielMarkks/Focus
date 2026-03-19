@@ -20,7 +20,8 @@ export const Model = {
             tema: 'light',
             apiKey: '',
             provider: 'gemini',
-            ultimoMorning: null
+            ultimoMorning: null,
+            bemestar: null
         }
     },
     chatMemory: {
@@ -40,6 +41,111 @@ export const Model = {
 
     obterFraseAleatoria() {
         return this.citacoes[Math.floor(Math.random() * this.citacoes.length)];
+    },
+
+    _defaultBemestar() {
+        return {
+            hidratacao: { meta: 8, copos: 0, data: '' },
+            sono: [],
+            treinos: [],
+            suplementosConfig: ['Proteína', 'Vitamina D', 'Creatina'],
+            suplementosHoje: [],
+            suplementosData: '',
+            vicios: []
+        };
+    },
+
+    getBemestar() {
+        if (!this.usuario.config.bemestar) {
+            this.usuario.config.bemestar = this._defaultBemestar();
+        }
+        // Daily reset
+        const hoje = new Date().toLocaleDateString();
+        const bm = this.usuario.config.bemestar;
+        if (bm.hidratacao.data !== hoje) {
+            bm.hidratacao.copos = 0;
+            bm.hidratacao.data = hoje;
+        }
+        if (bm.suplementosData !== hoje) {
+            bm.suplementosHoje = [];
+            bm.suplementosData = hoje;
+        }
+        return bm;
+    },
+
+    registrarCopo() {
+        const bm = this.getBemestar();
+        bm.hidratacao.copos = Math.min(bm.hidratacao.copos + 1, bm.hidratacao.meta + 4);
+        this.salvarPerfilBackground();
+    },
+
+    removerCopo() {
+        const bm = this.getBemestar();
+        bm.hidratacao.copos = Math.max(0, bm.hidratacao.copos - 1);
+        this.salvarPerfilBackground();
+    },
+
+    setMetaHidratacao(meta) {
+        this.getBemestar().hidratacao.meta = Math.max(1, Math.min(20, meta));
+        this.salvarPerfilBackground();
+    },
+
+    registrarSono(horas) {
+        const bm = this.getBemestar();
+        const data = new Date().toLocaleDateString();
+        bm.sono = bm.sono.filter(s => s.data !== data);
+        bm.sono.unshift({ data, horas });
+        if (bm.sono.length > 7) bm.sono = bm.sono.slice(0, 7);
+        this.salvarPerfilBackground();
+    },
+
+    registrarTreino(descricao) {
+        const bm = this.getBemestar();
+        const data = new Date().toLocaleDateString();
+        bm.treinos.unshift({ id: crypto.randomUUID(), data, descricao });
+        if (bm.treinos.length > 14) bm.treinos = bm.treinos.slice(0, 14);
+        this.salvarPerfilBackground();
+    },
+
+    toggleSuplemento(nome) {
+        const bm = this.getBemestar();
+        const idx = bm.suplementosHoje.indexOf(nome);
+        if (idx >= 0) bm.suplementosHoje.splice(idx, 1);
+        else bm.suplementosHoje.push(nome);
+        this.salvarPerfilBackground();
+    },
+
+    addVicio(nome) {
+        const bm = this.getBemestar();
+        bm.vicios.push({ id: crypto.randomUUID(), nome, streak: 0, ultimaData: '' });
+        this.salvarPerfilBackground();
+    },
+
+    checkInVicio(id) {
+        const bm = this.getBemestar();
+        const v = bm.vicios.find(x => x.id === id);
+        if (v) {
+            const hoje = new Date().toLocaleDateString();
+            if (v.ultimaData !== hoje) {
+                v.streak++;
+                v.ultimaData = hoje;
+                this.salvarPerfilBackground();
+                return true;
+            }
+        }
+        return false;
+    },
+
+    resetarVicio(id) {
+        const bm = this.getBemestar();
+        const v = bm.vicios.find(x => x.id === id);
+        if (v) { v.streak = 0; v.ultimaData = ''; this.salvarPerfilBackground(); }
+    },
+
+    delVicio(id) {
+        const bm = this.getBemestar();
+        bm.vicios = bm.vicios.filter(v => v.id !== id);
+        this.salvarPerfilBackground();
     },
 
     // ==========================================================
@@ -277,6 +383,16 @@ export const Model = {
         this.usuario.habitos.forEach(h => {
             h.concluidoHoje = false;
         });
+
+        // Reset diário do bem-estar
+        const bm = this.getBemestar();
+        const amanha = new Date();
+        amanha.setDate(amanha.getDate() + 1);
+        bm.hidratacao.copos = 0;
+        bm.hidratacao.data = amanha.toLocaleDateString();
+        bm.suplementosHoje = [];
+        bm.suplementosData = amanha.toLocaleDateString();
+
         this.salvarPerfilBackground();
 
         // Reset diário dos hábitos na nuvem
@@ -284,9 +400,7 @@ export const Model = {
             concluido_hoje: false
         }).eq('user_id', this.session.user.id).then();
 
-        return {
-            migradas
-        };
+        return { migradas };
     },
 
     // ==========================================================

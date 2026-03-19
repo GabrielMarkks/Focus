@@ -258,22 +258,264 @@ export const View = {
             const hojeDia = new Date().getDay();
             (usuario.habitos || []).forEach(h => {
                 const ehDia = h.dias ? h.dias.includes(hojeDia) : true;
-                const opacity = ehDia ? '1' : '0.5';
-                const icon = ehDia ? (h.concluidoHoje ? '🔥' : '⬜') : '💤';
+                const opacity = ehDia ? '1' : '0.4';
+
+                let streakBadge = '';
+                if (h.streak >= 30) streakBadge = `<span class="badge bg-warning text-dark rounded-pill px-2 py-1">👑 ${h.streak}d</span>`;
+                else if (h.streak >= 14) streakBadge = `<span class="badge bg-success rounded-pill px-2 py-1">🔥 ${h.streak}d</span>`;
+                else if (h.streak >= 7) streakBadge = `<span class="badge bg-primary rounded-pill px-2 py-1">⚡ ${h.streak}d</span>`;
+                else if (h.streak > 0) streakBadge = `<span class="badge bg-secondary rounded-pill px-2 py-1">🌱 ${h.streak}d</span>`;
+                else streakBadge = `<span class="badge bg-light text-muted border rounded-pill px-2 py-1">0d</span>`;
+
                 lh.innerHTML += `
-                <li class="list-group-item d-flex justify-content-between align-items-center" style="opacity: ${opacity}">
+                <li class="list-group-item d-flex justify-content-between align-items-center rounded-3 mb-1 border-0 bg-body-secondary" style="opacity: ${opacity}">
                     <div class="d-flex gap-3 align-items-center">
-                        <input class="form-check-input mt-0" type="checkbox" ${h.concluidoHoje ? 'checked' : ''} ${!ehDia ? 'disabled' : ''} onchange="App.Controller.toggleHabit('${h.id}')" style="cursor: pointer;">
-                        <div class="d-flex flex-column" style="line-height: 1.2;">
-                            <span class="${h.concluidoHoje ? 'text-decoration-line-through text-muted' : ''}">${this.escapeHTML(h.texto)}</span>
-                            <small class="text-muted" style="font-size: 0.7rem;">${icon} Streak: ${h.streak} dias</small>
+                        <input class="form-check-input mt-0 flex-shrink-0" type="checkbox"
+                            ${h.concluidoHoje ? 'checked' : ''} ${!ehDia ? 'disabled' : ''}
+                            onchange="App.Controller.toggleHabit('${h.id}')"
+                            style="cursor: pointer; width: 22px; height: 22px;">
+                        <div class="d-flex flex-column" style="line-height: 1.3;">
+                            <span class="${h.concluidoHoje ? 'text-decoration-line-through text-muted' : 'fw-medium'}">${this.escapeHTML(h.texto)}</span>
+                            <div class="mt-1">${ehDia ? streakBadge : '<span class="text-muted small">💤 Dia de descanso</span>'}</div>
                         </div>
                     </div>
                     <i class="ph ph-trash opacity-25 hover-danger" style="cursor: pointer;" onclick="App.Controller.delHabit('${h.id}')"></i>
                 </li>`;
             });
-            if (usuario.habitos.length === 0) lh.innerHTML = '<div class="text-center text-muted small py-3">Nenhum hábito ativo.</div>';
+            if (usuario.habitos.length === 0) lh.innerHTML = '<div class="text-center text-muted small py-4"><i class="ph ph-plant fs-2 opacity-25 d-block mb-2"></i>Nenhum ritual definido.</div>';
         }
+    },
+
+    renderBemEstar() {
+        this.renderHidratacao();
+        this.renderSono();
+        this.renderTreino();
+        this.renderVicios();
+    },
+
+    renderHidratacao() {
+        const container = document.getElementById('bemestar-hidratacao');
+        if (!container) return;
+        const bm = Model.getBemestar();
+        const h = bm.hidratacao;
+        const pct = Math.min(Math.round((h.copos / h.meta) * 100), 100);
+        const cor = pct >= 100 ? 'bg-success' : pct >= 50 ? 'bg-info' : 'bg-primary';
+
+        let coposHtml = '';
+        for (let i = 0; i < h.meta; i++) {
+            coposHtml += `<i class="ph ${i < h.copos ? 'ph-drop-fill text-info' : 'ph-drop text-muted opacity-25'} fs-4"></i>`;
+        }
+
+        container.innerHTML = `
+            <div class="text-center mb-4">
+                <div class="display-2 fw-bold text-info">${h.copos}</div>
+                <div class="text-muted small mb-2">de ${h.meta} copos hoje</div>
+                <div class="progress mx-auto mb-3" style="height: 8px; max-width: 220px;">
+                    <div class="progress-bar ${cor} transition-width" style="width: ${pct}%"></div>
+                </div>
+                <div class="d-flex justify-content-center flex-wrap gap-1 mb-4" style="max-width: 260px; margin: 0 auto;">${coposHtml}</div>
+            </div>
+            <div class="d-flex gap-3 justify-content-center mb-4">
+                <button class="btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                    style="width: 52px; height: 52px;" onclick="App.Controller.removerCopo()">
+                    <i class="ph ph-minus fs-4"></i>
+                </button>
+                <button class="btn btn-info text-white rounded-circle shadow d-flex align-items-center justify-content-center"
+                    style="width: 68px; height: 68px;" onclick="App.Controller.registrarCopo()">
+                    <i class="ph ph-drop fs-2"></i>
+                </button>
+                <button class="btn btn-info text-white rounded-circle d-flex align-items-center justify-content-center"
+                    style="width: 52px; height: 52px;" onclick="App.Controller.registrarCopo()">
+                    <i class="ph ph-plus fs-4"></i>
+                </button>
+            </div>
+            ${pct >= 100 ? '<div class="alert alert-success border-0 rounded-3 text-center mb-3"><i class="ph ph-medal me-2"></i><strong>Meta atingida! Parabéns!</strong></div>' : ''}
+            <div class="card bg-body-tertiary border-0 rounded-3 p-3">
+                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Meta diária (copos)</label>
+                <div class="input-group">
+                    <input type="number" id="input-meta-hidratacao" class="form-control border-0 bg-body"
+                        value="${h.meta}" min="1" max="20">
+                    <button class="btn btn-primary" onclick="App.Controller.salvarMetaHidratacao()">Salvar</button>
+                </div>
+            </div>
+        `;
+    },
+
+    renderSono() {
+        const container = document.getElementById('bemestar-sono');
+        if (!container) return;
+        const bm = Model.getBemestar();
+        const sono = bm.sono || [];
+        const hoje = new Date().toLocaleDateString();
+        const sonoHoje = sono.find(s => s.data === hoje);
+        const media = sono.length > 0 ? (sono.reduce((a, s) => a + s.horas, 0) / sono.length).toFixed(1) : 0;
+
+        let historicoHtml = '';
+        if (sono.length > 0) {
+            let itens = sono.map(s => {
+                const cor = s.horas >= 7 ? 'text-success' : s.horas >= 6 ? 'text-warning' : 'text-danger';
+                const emoji = s.horas >= 7 ? '😴' : s.horas >= 6 ? '😐' : '😫';
+                return `<li class="list-group-item bg-transparent d-flex justify-content-between py-2">
+                    <span class="small text-muted">${s.data}</span>
+                    <span class="fw-bold ${cor}">${emoji} ${s.horas}h</span>
+                </li>`;
+            }).join('');
+            historicoHtml = `
+                <div class="card bg-body-tertiary border-0 rounded-3 p-3 mt-3">
+                    <h6 class="fw-bold text-muted small text-uppercase mb-2">Últimos 7 Dias</h6>
+                    <ul class="list-group list-group-flush">${itens}</ul>
+                </div>`;
+        }
+
+        container.innerHTML = `
+            <div class="text-center mb-4">
+                ${sonoHoje
+                    ? `<div class="display-2 fw-bold text-primary">${sonoHoje.horas}h</div>
+                       <div class="text-muted small mb-2">de sono esta noite</div>
+                       <div class="alert ${sonoHoje.horas >= 7 ? 'alert-success' : sonoHoje.horas >= 6 ? 'alert-warning' : 'alert-danger'} border-0 rounded-3 mb-0">
+                           ${sonoHoje.horas >= 7 ? '✅ Sono adequado!' : sonoHoje.horas >= 6 ? '⚠️ Quase lá, tente dormir mais.' : '❌ Sono insuficiente!'}
+                       </div>`
+                    : `<div class="text-muted py-3"><i class="ph ph-moon fs-1 mb-2 d-block opacity-25"></i>Não registrado hoje</div>`
+                }
+                ${sono.length > 0 ? `<div class="text-muted small mt-3">Média semanal: <strong class="text-body">${media}h</strong></div>` : ''}
+            </div>
+            <div class="card bg-body-tertiary border-0 rounded-3 p-3">
+                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Horas dormidas esta noite</label>
+                <div class="input-group">
+                    <input type="number" id="input-sono-horas" class="form-control border-0 bg-body"
+                        placeholder="Ex: 7.5" step="0.5" min="0" max="24" value="${sonoHoje ? sonoHoje.horas : ''}">
+                    <button class="btn btn-primary" onclick="App.Controller.registrarSono()">
+                        <i class="ph ph-moon me-1"></i> Registrar
+                    </button>
+                </div>
+            </div>
+            ${historicoHtml}
+        `;
+    },
+
+    renderTreino() {
+        const container = document.getElementById('bemestar-treino');
+        if (!container) return;
+        const bm = Model.getBemestar();
+        const treinos = bm.treinos || [];
+        const suplementosConfig = bm.suplementosConfig || [];
+        const suplementosHoje = bm.suplementosHoje || [];
+        const hoje = new Date().toLocaleDateString();
+        const treinoHoje = treinos.find(t => t.data === hoje);
+
+        const supsHtml = suplementosConfig.map(s => {
+            const tomado = suplementosHoje.includes(s);
+            return `<button class="btn btn-sm ${tomado ? 'btn-success' : 'btn-outline-secondary'} rounded-pill"
+                onclick="App.Controller.toggleSuplemento('${this.escapeHTML(s)}')">${tomado ? '✓ ' : ''}${this.escapeHTML(s)}</button>`;
+        }).join('');
+
+        let historicoHtml = '';
+        if (treinos.length > 0) {
+            const itens = treinos.slice(0, 5).map(t => `
+                <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center py-2">
+                    <div>
+                        <div class="small fw-medium">${this.escapeHTML(t.descricao)}</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">${t.data}</div>
+                    </div>
+                    <i class="ph ph-barbell text-success fs-5"></i>
+                </li>`).join('');
+            historicoHtml = `
+                <div class="card bg-body-tertiary border-0 rounded-3 p-3 mt-3">
+                    <h6 class="fw-bold text-muted small text-uppercase mb-2">Histórico Recente</h6>
+                    <ul class="list-group list-group-flush">${itens}</ul>
+                </div>`;
+        }
+
+        container.innerHTML = `
+            <div class="text-center mb-3">
+                ${treinoHoje
+                    ? `<div class="alert alert-success border-0 rounded-3">
+                           <i class="ph ph-check-circle me-2"></i><strong>Treino registrado hoje!</strong><br>
+                           <small class="opacity-75">${this.escapeHTML(treinoHoje.descricao)}</small>
+                       </div>`
+                    : `<div class="text-muted py-2"><i class="ph ph-barbell fs-1 mb-1 d-block opacity-25"></i>Nenhum treino hoje</div>`
+                }
+            </div>
+            <div class="card bg-body-tertiary border-0 rounded-3 p-3 mb-3">
+                <h6 class="fw-bold text-muted small text-uppercase mb-2">Suplementos Hoje</h6>
+                <div class="d-flex flex-wrap gap-2">${supsHtml || '<span class="text-muted small">Configure nos ajustes</span>'}</div>
+            </div>
+            <div class="card bg-body-tertiary border-0 rounded-3 p-3 mb-3">
+                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Registrar Treino</label>
+                <div class="input-group">
+                    <input type="text" id="input-treino-desc" class="form-control border-0 bg-body"
+                        placeholder="Ex: Musculação 1h, Corrida 30min...">
+                    <button class="btn btn-success" onclick="App.Controller.registrarTreino()">
+                        <i class="ph ph-plus"></i>
+                    </button>
+                </div>
+            </div>
+            ${historicoHtml}
+        `;
+    },
+
+    renderVicios() {
+        const container = document.getElementById('bemestar-vicios');
+        if (!container) return;
+        const bm = Model.getBemestar();
+        const vicios = bm.vicios || [];
+        const hoje = new Date().toLocaleDateString();
+
+        let listHtml = '';
+        if (vicios.length === 0) {
+            listHtml = `<div class="text-center text-muted py-4">
+                <i class="ph ph-shield-check fs-1 opacity-25 mb-2 d-block"></i>
+                <p class="small">Nenhum monitoramento ativo.<br>Adicione abaixo o que quer controlar.</p>
+            </div>`;
+        } else {
+            listHtml = vicios.map(v => {
+                const jaMarcouHoje = v.ultimaData === hoje;
+                const display = v.streak >= 30
+                    ? `${Math.floor(v.streak / 30)}m ${v.streak % 30}d`
+                    : `${v.streak} dia${v.streak !== 1 ? 's' : ''}`;
+                const cor = v.streak >= 30 ? 'text-warning' : v.streak >= 7 ? 'text-success' : 'text-primary';
+                const icone = v.streak >= 30 ? '🏆' : v.streak >= 7 ? '🔥' : '💪';
+
+                return `
+                <div class="card border-0 shadow-sm rounded-3 mb-3 overflow-hidden">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold mb-0">${this.escapeHTML(v.nome)}</h6>
+                            <button class="btn btn-sm btn-link text-danger p-0" onclick="App.Controller.delVicio('${v.id}')">
+                                <i class="ph ph-trash"></i>
+                            </button>
+                        </div>
+                        <div class="d-flex align-items-baseline gap-2 mb-3">
+                            <span class="fs-3 fw-bold ${cor}">${icone} ${display}</span>
+                            <span class="text-muted small">sem ${this.escapeHTML(v.nome)}</span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm ${jaMarcouHoje ? 'btn-success' : 'btn-outline-success'} rounded-pill flex-grow-1"
+                                onclick="App.Controller.checkInVicio('${v.id}')" ${jaMarcouHoje ? 'disabled' : ''}>
+                                ${jaMarcouHoje ? '✓ Mantido hoje' : 'Mantive hoje!'}
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger rounded-pill"
+                                onclick="App.Controller.resetarVicio('${v.id}')">Recaída</button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        container.innerHTML = `
+            ${listHtml}
+            <div class="card bg-body-tertiary border-0 rounded-3 p-3 mt-2">
+                <label class="form-label small fw-bold text-muted text-uppercase mb-2">Monitorar novo hábito a evitar</label>
+                <div class="input-group">
+                    <input type="text" id="input-vicio-nome" class="form-control border-0 bg-body"
+                        placeholder="Ex: Fumar, Álcool, Redes Sociais..."
+                        onkeypress="if(event.key==='Enter') App.Controller.adicionarVicio()">
+                    <button class="btn btn-primary" onclick="App.Controller.adicionarVicio()">
+                        <i class="ph ph-plus"></i>
+                    </button>
+                </div>
+            </div>
+        `;
     },
 
     playReward() {
