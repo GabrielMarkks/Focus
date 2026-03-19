@@ -963,5 +963,96 @@ export const Controller = {
             Model.delVicio(id);
             View.renderVicios();
         }
+    },
+
+    // ==========================================================
+    // --- FINANCEIRO ---
+    // ==========================================================
+    finMesRef: new Date(),
+
+    abrirFinanceiro() {
+        const el = document.getElementById('offcanvasFinanceiro');
+        if (!el) return;
+        this.finMesRef = new Date();
+        const canvas = bootstrap.Offcanvas.getInstance(el) || new bootstrap.Offcanvas(el);
+        canvas.show();
+        setTimeout(() => {
+            View.renderResumoFinanceiro(this.finMesRef);
+            View.renderFormTransacao();
+            View.renderHistoricoFinanceiro();
+            View.renderCalendarioFinanceiro(this.finMesRef);
+        }, 100);
+    },
+
+    abrirTabLancar() {
+        setTimeout(() => View.renderFormTransacao(), 50);
+    },
+
+    adicionarTransacao() {
+        const tipo = document.querySelector('input[name="fin-tipo"]:checked')?.value;
+        const valor = parseFloat(document.getElementById('fin-valor')?.value);
+        const descricao = document.getElementById('fin-descricao')?.value.trim();
+        const categoria = document.getElementById('fin-categoria')?.value;
+        const data = document.getElementById('fin-data')?.value.trim();
+
+        if (!tipo) return View.notify("Selecione o tipo.", "error");
+        if (!valor || valor <= 0) return View.notify("Informe um valor válido.", "error");
+        if (!descricao) return View.notify("Adicione uma descrição.", "error");
+
+        Model.addTransacao(tipo, valor, descricao, categoria, data);
+
+        View.renderResumoFinanceiro(this.finMesRef);
+        View.renderFormTransacao();
+        View.renderHistoricoFinanceiro();
+        View.renderCalendarioFinanceiro(this.finMesRef);
+
+        const icones = { receita: '💰', despesa: '💸', investimento: '📈' };
+        View.notify(`${icones[tipo]} Lançado com sucesso!`, "success");
+    },
+
+    delTransacao(id) {
+        if (confirm("Remover esta transação?")) {
+            Model.delTransacao(id);
+            View.renderResumoFinanceiro(this.finMesRef);
+            View.renderHistoricoFinanceiro();
+            View.renderCalendarioFinanceiro(this.finMesRef);
+        }
+    },
+
+    buscarTransacoes(busca) {
+        View.renderHistoricoFinanceiro(busca);
+    },
+
+    navegarCalFin(dir) {
+        this.finMesRef = new Date(this.finMesRef.getFullYear(), this.finMesRef.getMonth() + dir, 1);
+        View.renderResumoFinanceiro(this.finMesRef);
+        View.renderCalendarioFinanceiro(this.finMesRef);
+    },
+
+    verDiaFinanceiro(dia, mes, ano) {
+        const container = document.getElementById('fin-detalhe-dia');
+        if (!container) return;
+        const diasPorDia = Model.getTransacoesPorDia(mes, ano);
+        const ts = diasPorDia[dia] || [];
+        if (ts.length === 0) { container.innerHTML = ''; return; }
+
+        const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+        const itens = ts.map(t => {
+            const cor = t.tipo === 'receita' ? 'text-success' : t.tipo === 'investimento' ? 'text-info' : 'text-danger';
+            const sinal = t.tipo === 'receita' ? '+' : '-';
+            return `<div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <div>
+                    <div class="small fw-medium">${View.escapeHTML(t.descricao)}</div>
+                    <div class="text-muted" style="font-size: 0.7rem;">${View.escapeHTML(t.categoria)}</div>
+                </div>
+                <span class="fw-bold ${cor}">${sinal}${fmt(t.valor)}</span>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="card border-0 bg-body-tertiary rounded-3 p-3">
+                <h6 class="fw-bold mb-2">Dia ${dia}</h6>
+                ${itens}
+            </div>`;
     }
 };

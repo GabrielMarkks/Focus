@@ -21,7 +21,8 @@ export const Model = {
             apiKey: '',
             provider: 'gemini',
             ultimoMorning: null,
-            bemestar: null
+            bemestar: null,
+            financeiro: null
         }
     },
     chatMemory: {
@@ -146,6 +147,86 @@ export const Model = {
         const bm = this.getBemestar();
         bm.vicios = bm.vicios.filter(v => v.id !== id);
         this.salvarPerfilBackground();
+    },
+
+    // ==========================================================
+    // --- FINANCEIRO ---
+    // ==========================================================
+    _defaultFinanceiro() {
+        return {
+            transacoes: [],
+            categorias: {
+                receita: ['Salário', 'Freelance', 'Bônus', 'Investimento', 'Outros'],
+                despesa: ['Alimentação', 'Transporte', 'Lazer', 'Moradia', 'Saúde', 'Educação', 'Assinaturas', 'Outros'],
+                investimento: ['Ações', 'FIIs', 'CDB/LCI', 'Cripto', 'Poupança', 'Outros']
+            }
+        };
+    },
+
+    getFinanceiro() {
+        if (!this.usuario.config.financeiro) {
+            this.usuario.config.financeiro = this._defaultFinanceiro();
+        }
+        return this.usuario.config.financeiro;
+    },
+
+    addTransacao(tipo, valor, descricao, categoria, data) {
+        const fin = this.getFinanceiro();
+        fin.transacoes.unshift({
+            id: crypto.randomUUID(),
+            tipo,
+            valor: parseFloat(valor),
+            descricao,
+            categoria: categoria || 'Outros',
+            data: data || new Date().toLocaleDateString('pt-BR')
+        });
+        if (fin.transacoes.length > 200) fin.transacoes = fin.transacoes.slice(0, 200);
+        this.salvarPerfilBackground();
+    },
+
+    delTransacao(id) {
+        const fin = this.getFinanceiro();
+        fin.transacoes = fin.transacoes.filter(t => t.id !== id);
+        this.salvarPerfilBackground();
+    },
+
+    getSaldoAtual() {
+        return this.getFinanceiro().transacoes.reduce((acc, t) => {
+            if (t.tipo === 'receita') return acc + t.valor;
+            if (t.tipo === 'despesa') return acc - t.valor;
+            return acc;
+        }, 0);
+    },
+
+    _parseDateBR(str) {
+        if (!str) return null;
+        const p = str.split('/');
+        if (p.length === 3) return new Date(+p[2], +p[1] - 1, +p[0]);
+        return null;
+    },
+
+    getResumoMes(mes, ano) {
+        const ts = this.getFinanceiro().transacoes.filter(t => {
+            const d = this._parseDateBR(t.data);
+            return d && d.getMonth() === mes && d.getFullYear() === ano;
+        });
+        const receitas = ts.filter(t => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0);
+        const despesas = ts.filter(t => t.tipo === 'despesa').reduce((a, t) => a + t.valor, 0);
+        const investimentos = ts.filter(t => t.tipo === 'investimento').reduce((a, t) => a + t.valor, 0);
+        return { receitas, despesas, investimentos, saldo: receitas - despesas - investimentos, transacoes: ts };
+    },
+
+    getTransacoesPorDia(mes, ano) {
+        const mapa = {};
+        this.getFinanceiro().transacoes.forEach(t => {
+            const d = this._parseDateBR(t.data);
+            if (d && d.getMonth() === mes && d.getFullYear() === ano) {
+                const dia = d.getDate();
+                if (!mapa[dia]) mapa[dia] = [];
+                mapa[dia].push(t);
+            }
+        });
+        return mapa;
     },
 
     // ==========================================================

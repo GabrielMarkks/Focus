@@ -460,3 +460,64 @@ body {
 [data-bs-theme="dark"] #offcanvasBemEstar {
     background: var(--bs-body-bg);
 }
+
+/* === FINANCEIRO - CALENDÁRIO === */
+.calendario-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+}
+
+.cal-header {
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--bs-secondary-color);
+    padding: 4px 0;
+}
+
+.cal-dia {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    cursor: default;
+    min-height: 38px;
+}
+
+.cal-dia.cal-hoje {
+    background-color: var(--bs-primary);
+    color: white;
+    font-weight: 700;
+}
+
+.cal-dia.cal-com-lancamentos {
+    background-color: var(--bs-secondary-bg);
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.cal-dia.cal-com-lancamentos:hover { opacity: 0.75; }
+
+.cal-dia.cal-hoje.cal-com-lancamentos { cursor: pointer; }
+
+.cal-dots {
+    display: flex;
+    gap: 2px;
+    margin-top: 2px;
+}
+
+.cal-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.cal-num { line-height: 1; font-size: 0.75rem; }
+
+.cal-dia.vazio { background: transparent; }

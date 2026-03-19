@@ -518,6 +518,275 @@ export const View = {
         `;
     },
 
+    // ==========================================================
+    // --- FINANCEIRO ---
+    // ==========================================================
+    _fmt(v) {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+    },
+
+    renderResumoFinanceiro(mesRef) {
+        const container = document.getElementById('fin-resumo');
+        if (!container) return;
+        const agora = mesRef || new Date();
+        const mes = agora.getMonth();
+        const ano = agora.getFullYear();
+        const resumo = Model.getResumoMes(mes, ano);
+        const saldo = Model.getSaldoAtual();
+        const fmt = this._fmt.bind(this);
+
+        const taxaPoupanca = resumo.receitas > 0
+            ? Math.max(0, Math.round(((resumo.receitas - resumo.despesas) / resumo.receitas) * 100))
+            : 0;
+
+        const despesasMes = resumo.transacoes.filter(t => t.tipo === 'despesa');
+        const catMap = {};
+        despesasMes.forEach(t => { catMap[t.categoria] = (catMap[t.categoria] || 0) + t.valor; });
+
+        const nomeMes = agora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+        container.innerHTML = `
+            <div class="card border-0 rounded-4 text-white mb-3 overflow-hidden"
+                style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);">
+                <div class="card-body p-4 text-center">
+                    <small class="opacity-50 text-uppercase fw-bold small">Saldo Total</small>
+                    <div class="display-4 fw-bold my-2 ${saldo >= 0 ? 'text-success' : 'text-danger'}">${fmt(saldo)}</div>
+                    <small class="opacity-75">Acumulado de todas as receitas − despesas</small>
+                </div>
+            </div>
+
+            <h6 class="fw-bold text-muted text-uppercase small mb-2 text-capitalize">${nomeMes}</h6>
+            <div class="row g-2 mb-3">
+                <div class="col-4">
+                    <div class="card border-0 bg-success bg-opacity-10 rounded-3 p-2 text-center">
+                        <div class="small fw-bold text-success">${fmt(resumo.receitas)}</div>
+                        <div class="text-muted text-uppercase" style="font-size: 0.65rem;">Receitas</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="card border-0 bg-danger bg-opacity-10 rounded-3 p-2 text-center">
+                        <div class="small fw-bold text-danger">${fmt(resumo.despesas)}</div>
+                        <div class="text-muted text-uppercase" style="font-size: 0.65rem;">Despesas</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="card border-0 bg-info bg-opacity-10 rounded-3 p-2 text-center">
+                        <div class="small fw-bold text-info">${fmt(resumo.investimentos)}</div>
+                        <div class="text-muted text-uppercase" style="font-size: 0.65rem;">Invest.</div>
+                    </div>
+                </div>
+            </div>
+
+            ${resumo.receitas > 0 ? `
+            <div class="card bg-body-tertiary border-0 rounded-3 p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small fw-bold">Taxa de Poupança</span>
+                    <span class="badge ${taxaPoupanca >= 20 ? 'bg-success' : taxaPoupanca >= 10 ? 'bg-warning text-dark' : 'bg-danger'} rounded-pill">${taxaPoupanca}%</span>
+                </div>
+                <div class="progress" style="height: 6px;">
+                    <div class="progress-bar ${taxaPoupanca >= 20 ? 'bg-success' : taxaPoupanca >= 10 ? 'bg-warning' : 'bg-danger'}"
+                        style="width: ${Math.min(taxaPoupanca, 100)}%"></div>
+                </div>
+                <small class="text-muted mt-1 d-block" style="font-size: 0.7rem;">Ideal: ≥ 20% da receita</small>
+            </div>` : ''}
+
+            ${Object.keys(catMap).length > 0 ? `
+            <div class="card bg-body-tertiary border-0 rounded-3 p-3">
+                <h6 class="fw-bold text-muted small text-uppercase mb-2">Gastos por Categoria</h6>
+                <canvas id="grafico-categorias-fin" height="160"></canvas>
+            </div>` : `<div class="text-center text-muted py-4 small"><i class="ph ph-receipt fs-1 opacity-25 d-block mb-2"></i>Nenhuma transação neste mês.</div>`}
+        `;
+
+        if (Object.keys(catMap).length > 0 && typeof Chart !== 'undefined') {
+            const canvas = document.getElementById('grafico-categorias-fin');
+            if (canvas) {
+                if (this.charts.fin) this.charts.fin.destroy();
+                this.charts.fin = new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(catMap),
+                        datasets: [{ data: Object.values(catMap), backgroundColor: ['#dc3545','#fd7e14','#ffc107','#198754','#0dcaf0','#6f42c1','#6c757d','#20c997'], borderWidth: 0 }]
+                    },
+                    options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+                });
+            }
+        }
+    },
+
+    renderFormTransacao() {
+        const container = document.getElementById('fin-lancar');
+        if (!container) return;
+        const fin = Model.getFinanceiro();
+        const tipoAtivo = container.dataset.tipo || 'despesa';
+        const cats = fin.categorias[tipoAtivo] || ['Outros'];
+        const hoje = new Date().toLocaleDateString('pt-BR');
+        const catOptions = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+
+        container.innerHTML = `
+            <div class="mb-4">
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="fin-tipo" id="fin-despesa" value="despesa" ${tipoAtivo === 'despesa' ? 'checked' : ''}>
+                    <label class="btn btn-outline-danger fw-bold" for="fin-despesa">💸 Despesa</label>
+                    <input type="radio" class="btn-check" name="fin-tipo" id="fin-receita" value="receita" ${tipoAtivo === 'receita' ? 'checked' : ''}>
+                    <label class="btn btn-outline-success fw-bold" for="fin-receita">💰 Receita</label>
+                    <input type="radio" class="btn-check" name="fin-tipo" id="fin-invest" value="investimento" ${tipoAtivo === 'investimento' ? 'checked' : ''}>
+                    <label class="btn btn-outline-info fw-bold" for="fin-invest">📈 Invest.</label>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Valor (R$)</label>
+                <input type="number" id="fin-valor" class="form-control form-control-lg border-0 bg-body-tertiary fw-bold"
+                    placeholder="0,00" step="0.01" min="0">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Descrição</label>
+                <input type="text" id="fin-descricao" class="form-control border-0 bg-body-tertiary"
+                    placeholder="Ex: Almoço, Salário, Ações..."
+                    onkeypress="if(event.key==='Enter') App.Controller.adicionarTransacao()">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Categoria</label>
+                <select id="fin-categoria" class="form-select border-0 bg-body-tertiary">${catOptions}</select>
+            </div>
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-muted text-uppercase">Data</label>
+                <input type="text" id="fin-data" class="form-control border-0 bg-body-tertiary"
+                    placeholder="DD/MM/AAAA" value="${hoje}" maxlength="10">
+            </div>
+            <button class="btn ${tipoAtivo === 'receita' ? 'btn-success' : tipoAtivo === 'investimento' ? 'btn-info' : 'btn-danger'} w-100 py-3 fw-bold rounded-3 shadow-sm"
+                onclick="App.Controller.adicionarTransacao()">
+                <i class="ph ph-plus-circle me-2"></i>Registrar
+            </button>
+        `;
+
+        container.querySelectorAll('input[name="fin-tipo"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                container.dataset.tipo = radio.value;
+                this.renderFormTransacao();
+                setTimeout(() => document.getElementById('fin-valor')?.focus(), 100);
+            });
+        });
+    },
+
+    renderHistoricoFinanceiro(busca = '') {
+        const container = document.getElementById('fin-historico');
+        if (!container) return;
+        const fin = Model.getFinanceiro();
+        const fmt = this._fmt.bind(this);
+        let ts = fin.transacoes;
+
+        if (busca) {
+            const q = busca.toLowerCase();
+            ts = ts.filter(t => t.descricao.toLowerCase().includes(q) || t.categoria.toLowerCase().includes(q));
+        }
+
+        let html = `
+            <div class="mb-3">
+                <input type="text" class="form-control border-0 bg-body-tertiary"
+                    placeholder="🔍 Buscar transação..." id="fin-busca"
+                    value="${this.escapeHTML(busca)}"
+                    oninput="App.Controller.buscarTransacoes(this.value)">
+            </div>`;
+
+        if (ts.length === 0) {
+            html += `<div class="text-center text-muted py-4"><i class="ph ph-receipt fs-1 opacity-25 d-block mb-2"></i>Nenhuma transação encontrada.</div>`;
+        } else {
+            let dataAtual = '';
+            ts.forEach(t => {
+                if (t.data !== dataAtual) {
+                    dataAtual = t.data;
+                    html += `<div class="text-muted fw-bold text-uppercase mt-3 mb-1" style="font-size: 0.7rem;">${t.data}</div>`;
+                }
+                const corTipo = t.tipo === 'receita' ? 'text-success' : t.tipo === 'investimento' ? 'text-info' : 'text-danger';
+                const sinal = t.tipo === 'receita' ? '+' : '-';
+                const icone = t.tipo === 'receita' ? 'ph-arrow-down-left text-success' : t.tipo === 'investimento' ? 'ph-trend-up text-info' : 'ph-arrow-up-right text-danger';
+                html += `
+                <div class="d-flex justify-content-between align-items-center p-2 mb-1 rounded-3 bg-body-secondary">
+                    <div class="d-flex align-items-center gap-2 overflow-hidden">
+                        <div class="rounded-circle bg-body d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;">
+                            <i class="ph ${icone}"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="fw-medium small text-truncate">${this.escapeHTML(t.descricao)}</div>
+                            <div class="text-muted" style="font-size: 0.7rem;">${this.escapeHTML(t.categoria)}</div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                        <span class="fw-bold ${corTipo} small">${sinal}${fmt(t.valor)}</span>
+                        <button class="btn btn-sm btn-link text-danger p-0 opacity-25 hover-opacity-100"
+                            onclick="App.Controller.delTransacao('${t.id}')">
+                            <i class="ph ph-x"></i>
+                        </button>
+                    </div>
+                </div>`;
+            });
+        }
+
+        container.innerHTML = html;
+    },
+
+    renderCalendarioFinanceiro(mesRef) {
+        const container = document.getElementById('fin-calendario');
+        if (!container) return;
+        const agora = mesRef || new Date();
+        const mes = agora.getMonth();
+        const ano = agora.getFullYear();
+        const diasPorDia = Model.getTransacoesPorDia(mes, ano);
+        const nomeMes = agora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+        const primeiroDia = new Date(ano, mes, 1).getDay();
+        const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+        const hoje = new Date().getDate();
+        const mesHoje = new Date().getMonth();
+        const anoHoje = new Date().getFullYear();
+
+        const diasSemana = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+        let gridHtml = '<div class="calendario-grid">';
+        diasSemana.forEach(d => { gridHtml += `<div class="cal-header">${d}</div>`; });
+        for (let i = 0; i < primeiroDia; i++) gridHtml += '<div class="cal-dia vazio"></div>';
+
+        for (let dia = 1; dia <= ultimoDia; dia++) {
+            const ts = diasPorDia[dia] || [];
+            const temReceita = ts.some(t => t.tipo === 'receita');
+            const temDespesa = ts.some(t => t.tipo === 'despesa');
+            const temInvest = ts.some(t => t.tipo === 'investimento');
+            const ehHoje = dia === hoje && mes === mesHoje && ano === anoHoje;
+
+            gridHtml += `
+                <div class="cal-dia ${ehHoje ? 'cal-hoje' : ''} ${ts.length > 0 ? 'cal-com-lancamentos' : ''}"
+                    ${ts.length > 0 ? `onclick="App.Controller.verDiaFinanceiro(${dia}, ${mes}, ${ano})"` : ''}>
+                    <span class="cal-num">${dia}</span>
+                    ${ts.length > 0 ? `<div class="cal-dots">
+                        ${temReceita ? '<span class="cal-dot bg-success"></span>' : ''}
+                        ${temDespesa ? '<span class="cal-dot bg-danger"></span>' : ''}
+                        ${temInvest ? '<span class="cal-dot bg-info"></span>' : ''}
+                    </div>` : ''}
+                </div>`;
+        }
+        gridHtml += '</div>';
+
+        container.innerHTML = `
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <button class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                    style="width:32px;height:32px;" onclick="App.Controller.navegarCalFin(-1)">
+                    <i class="ph ph-caret-left"></i>
+                </button>
+                <h6 class="fw-bold text-capitalize mb-0">${nomeMes}</h6>
+                <button class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                    style="width:32px;height:32px;" onclick="App.Controller.navegarCalFin(1)">
+                    <i class="ph ph-caret-right"></i>
+                </button>
+            </div>
+            ${gridHtml}
+            <div class="d-flex gap-3 justify-content-center mt-3">
+                <span class="small text-muted d-flex align-items-center gap-1"><span class="cal-dot bg-success d-inline-block"></span>Receita</span>
+                <span class="small text-muted d-flex align-items-center gap-1"><span class="cal-dot bg-danger d-inline-block"></span>Despesa</span>
+                <span class="small text-muted d-flex align-items-center gap-1"><span class="cal-dot bg-info d-inline-block"></span>Invest.</span>
+            </div>
+            <div id="fin-detalhe-dia" class="mt-3"></div>
+        `;
+    },
+
     playReward() {
         const winAudio = new Audio(this.ambience.win);
         winAudio.volume = 0.5;
