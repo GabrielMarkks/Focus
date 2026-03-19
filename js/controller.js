@@ -31,6 +31,7 @@ export const Controller = {
 
         if (perfilCompleto) {
             this.refreshDash();
+            this._agendarNotificacoes(); // iniciar após dados carregados
             setTimeout(() => {
                 const hoje = new Date().toLocaleDateString();
                 if (!Model.usuario.config) Model.usuario.config = {};
@@ -221,6 +222,16 @@ export const Controller = {
         });
 
         if ("Notification" in window && Notification.permission !== "granted") Notification.requestPermission();
+
+        // Load notification config when settings modal opens
+        const modalConfigEl = document.getElementById('modalConfig');
+        if (modalConfigEl) {
+            modalConfigEl.addEventListener('show.bs.modal', () => {
+                this._carregarConfigsNotif();
+                View.applyTheme(Model.usuario.config.tema);
+            });
+        }
+
     },
 
     proximoPasso(n) {
@@ -244,6 +255,9 @@ export const Controller = {
     finalizarOnboarding() {
         const papeis = document.getElementById('input-papeis').value.split(',');
         Model.atualizarUsuario('papeis', papeis);
+        // Marcar onboarding como concluído para nunca mais aparecer
+        Model.usuario.config.onboardingConcluido = true;
+        Model.salvar();
         if (Model.usuario.proposito) Model.addTarefa(Model.usuario.proposito, true, true, 'crescimento');
         this.refreshDash();
         View.notify(`Bem-vindo, ${Model.usuario.nome}! 🚀`);
@@ -963,5 +977,531 @@ export const Controller = {
             Model.delVicio(id);
             View.renderVicios();
         }
+    },
+
+    // ==========================================================
+    // --- FINANCEIRO ---
+    // ==========================================================
+    finMesRef: new Date(),
+
+    abrirFinanceiro() {
+        const el = document.getElementById('offcanvasFinanceiro');
+        if (!el) return;
+        this.finMesRef = new Date();
+        const canvas = bootstrap.Offcanvas.getInstance(el) || new bootstrap.Offcanvas(el);
+        canvas.show();
+        setTimeout(() => {
+            View.renderResumoFinanceiro(this.finMesRef);
+            View.renderFormTransacao();
+            View.renderHistoricoFinanceiro();
+            View.renderCalendarioFinanceiro(this.finMesRef);
+        }, 100);
+    },
+
+    abrirTabLancar() {
+        setTimeout(() => View.renderFormTransacao(), 50);
+    },
+
+    adicionarTransacao() {
+        const tipo = document.querySelector('input[name="fin-tipo"]:checked')?.value;
+        const valor = parseFloat(document.getElementById('fin-valor')?.value);
+        const descricao = document.getElementById('fin-descricao')?.value.trim();
+        const categoria = document.getElementById('fin-categoria')?.value;
+        const data = document.getElementById('fin-data')?.value.trim();
+
+        if (!tipo) return View.notify("Selecione o tipo.", "error");
+        if (!valor || valor <= 0) return View.notify("Informe um valor válido.", "error");
+        if (!descricao) return View.notify("Adicione uma descrição.", "error");
+
+        Model.addTransacao(tipo, valor, descricao, categoria, data);
+
+        View.renderResumoFinanceiro(this.finMesRef);
+        View.renderFormTransacao();
+        View.renderHistoricoFinanceiro();
+        View.renderCalendarioFinanceiro(this.finMesRef);
+
+        const icones = { receita: '💰', despesa: '💸', investimento: '📈' };
+        View.notify(`${icones[tipo]} Lançado com sucesso!`, "success");
+    },
+
+    delTransacao(id) {
+        if (confirm("Remover esta transação?")) {
+            Model.delTransacao(id);
+            View.renderResumoFinanceiro(this.finMesRef);
+            View.renderHistoricoFinanceiro();
+            View.renderCalendarioFinanceiro(this.finMesRef);
+        }
+    },
+
+    buscarTransacoes(busca) {
+        View.renderHistoricoFinanceiro(busca);
+    },
+
+    navegarCalFin(dir) {
+        this.finMesRef = new Date(this.finMesRef.getFullYear(), this.finMesRef.getMonth() + dir, 1);
+        View.renderResumoFinanceiro(this.finMesRef);
+        View.renderCalendarioFinanceiro(this.finMesRef);
+    },
+
+    // ==========================================================
+    // --- NOTAS ---
+    // ==========================================================
+    abrirNotas() {
+        const el = document.getElementById('offcanvasNotas');
+        if (!el) return;
+        const canvas = bootstrap.Offcanvas.getInstance(el) || new bootstrap.Offcanvas(el);
+        canvas.show();
+        setTimeout(() => {
+            View.fecharNotaEditor();
+            View.renderListaNotas();
+        }, 100);
+    },
+
+    abrirNotaEditor(id) {
+        View.renderNotaEditor(id || null);
+    },
+
+    novaNotaRapida() {
+        View.renderNotaEditor(null);
+    },
+
+    salvarNota() {
+        const id = document.getElementById('notas-editor')?.dataset.notaId;
+        const titulo = document.getElementById('nota-titulo-input')?.value.trim();
+        const conteudo = document.getElementById('nota-conteudo-input')?.value.trim();
+        if (!conteudo) return View.notify("Escreva algo na nota.", "error");
+
+        if (id) Model.updateNota(id, titulo, conteudo);
+        else Model.addNota(titulo, conteudo);
+
+        View.fecharNotaEditor();
+        View.renderListaNotas();
+        View.notify("Nota salva!", "success");
+    },
+
+    delNota(id) {
+        if (confirm("Excluir esta nota?")) {
+            Model.delNota(id);
+            View.fecharNotaEditor();
+            View.renderListaNotas();
+        }
+    },
+
+    buscarNotas(q) {
+        View.renderListaNotas(q);
+    },
+
+    // ==========================================================
+    // --- TIME BLOCKING ---
+    // ==========================================================
+    agendaDataRef: new Date(),
+
+    abrirAgenda() {
+        const el = document.getElementById('offcanvasAgenda');
+        if (!el) return;
+        this.agendaDataRef = new Date();
+        const canvas = bootstrap.Offcanvas.getInstance(el) || new bootstrap.Offcanvas(el);
+        canvas.show();
+        setTimeout(() => View.renderAgenda(this.agendaDataRef), 100);
+    },
+
+    navegarAgenda(dir) {
+        this.agendaDataRef = new Date(
+            this.agendaDataRef.getFullYear(),
+            this.agendaDataRef.getMonth(),
+            this.agendaDataRef.getDate() + dir
+        );
+        View.renderAgenda(this.agendaDataRef);
+    },
+
+    abrirFormBloco(dataKey, horario) {
+        const form = document.getElementById('form-bloco-agenda');
+        if (!form) return;
+        form.classList.remove('d-none');
+        document.getElementById('bloco-data').value = dataKey;
+        document.getElementById('bloco-horario').value = horario;
+        document.getElementById('bloco-texto').value = '';
+        document.getElementById('form-bloco-titulo').textContent = `Bloco às ${horario}`;
+        const dur60 = document.getElementById('dur-60');
+        if (dur60) dur60.checked = true;
+        setTimeout(() => document.getElementById('bloco-texto')?.focus(), 100);
+        form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    },
+
+    salvarBlocoAgenda() {
+        const data = document.getElementById('bloco-data')?.value;
+        const horario = document.getElementById('bloco-horario')?.value;
+        const texto = document.getElementById('bloco-texto')?.value.trim();
+        const duracao = parseInt(document.querySelector('input[name="bloco-dur"]:checked')?.value || '60');
+
+        if (!texto) return View.notify("Descreva a atividade.", "error");
+        Model.addBlocoTempo(data, horario, texto, duracao);
+
+        const dataRef = Model._parseDateBR(data) || this.agendaDataRef;
+        View.renderAgenda(dataRef);
+        View.notify("Bloco adicionado! 🗓️", "success");
+    },
+
+    delBlocoAgenda(dataKey, id) {
+        Model.delBlocoTempo(dataKey, id);
+        const dataRef = Model._parseDateBR(dataKey) || this.agendaDataRef;
+        View.renderAgenda(dataRef);
+    },
+
+    // ==========================================================
+    // --- FILTRO DE PRIORIDADES ---
+    // ==========================================================
+    filtroFocoAtivo: false,
+
+    toggleFiltroFoco() {
+        this.filtroFocoAtivo = !this.filtroFocoAtivo;
+        const btn = document.getElementById('btn-filtro-foco');
+        const q3 = document.getElementById('col-q3');
+        const q4 = document.getElementById('col-q4');
+        const inbox = document.getElementById('painel-inbox');
+        const banner = document.getElementById('banner-filtro-foco');
+
+        if (this.filtroFocoAtivo) {
+            q3?.classList.add('d-none');
+            q4?.classList.add('d-none');
+            inbox?.classList.add('d-none');
+            banner?.classList.remove('d-none');
+            btn?.classList.replace('btn-outline-secondary', 'btn-warning');
+            btn?.classList.add('text-dark');
+        } else {
+            q3?.classList.remove('d-none');
+            q4?.classList.remove('d-none');
+            // Re-show inbox only if it has items
+            if ((Model.usuario.tarefas || []).some(t => t.isInbox)) inbox?.classList.remove('d-none');
+            banner?.classList.add('d-none');
+            btn?.classList.replace('btn-warning', 'btn-outline-secondary');
+            btn?.classList.remove('text-dark');
+        }
+        View.notify(this.filtroFocoAtivo ? '🎯 Modo Foco — só o essencial!' : 'Modo normal restaurado.', 'primary');
+    },
+
+    // ==========================================================
+    // --- FASE 4: TEMAS ---
+    // ==========================================================
+    mudarTema(tema) {
+        Model.usuario.config.tema = tema;
+        Model.salvar();
+        View.applyTheme(tema);
+    },
+
+    // ==========================================================
+    // --- FASE 4: AI SETUP WIZARD ---
+    // ==========================================================
+    _rotinaGerada: null,
+
+    abrirWizardIA() {
+        this._rotinaGerada = null;
+        const form = document.getElementById('wizard-form');
+        const res = document.getElementById('wizard-resultado');
+        const btnGerar = document.getElementById('btn-wizard-gerar');
+        const btnAplicar = document.getElementById('btn-wizard-aplicar');
+        if (form) form.classList.remove('d-none');
+        if (res) { res.classList.add('d-none'); res.querySelector('#wizard-resultado-corpo').innerHTML = ''; }
+        if (btnGerar) btnGerar.classList.remove('d-none');
+        if (btnAplicar) btnAplicar.classList.add('d-none');
+        View.toggleModal('modalWizardIA', 'show');
+    },
+
+    async executarWizardIA() {
+        const objetivo = document.getElementById('wizard-objetivo')?.value.trim();
+        const dificuldade = document.getElementById('wizard-dificuldade')?.value.trim();
+        const horas = document.getElementById('wizard-horas')?.value;
+        const area = document.getElementById('wizard-area')?.value;
+
+        if (!objetivo || !dificuldade) return View.notify('Preencha as perguntas 1 e 2.', 'warning');
+
+        const { provider, apiKey } = Model.usuario.config;
+        if (!apiKey) return View.notify('Configure sua API Key nas configurações.', 'error');
+
+        const btn = document.getElementById('btn-wizard-gerar');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Gerando...';
+
+        try {
+            const rotina = await AI_Manager.gerarRotina(provider, apiKey, { objetivo, dificuldade, horas, area });
+            this._rotinaGerada = rotina;
+
+            document.getElementById('wizard-form').classList.add('d-none');
+            const corpo = document.getElementById('wizard-resultado-corpo');
+            corpo.innerHTML = `
+                <div class="alert alert-success border-0 rounded-3 mb-3">
+                    <h6 class="fw-bold mb-2">🎯 Meta Semanal</h6>
+                    <p class="mb-0">${View.escapeHTML(rotina.metaSemanal)}</p>
+                </div>
+                <div class="alert alert-info border-0 rounded-3 mb-3">
+                    <h6 class="fw-bold mb-2">🚀 Meta Trimestral</h6>
+                    <p class="mb-0">${View.escapeHTML(rotina.metaTrimestral)}</p>
+                </div>
+                <div class="card border-0 bg-body-tertiary rounded-3 mb-3">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-2">✅ Hábitos Sugeridos</h6>
+                        <ul class="mb-0 ps-3">
+                            ${(rotina.habitos || []).map(h => `<li class="small">${View.escapeHTML(h)}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+                <div class="alert alert-warning border-0 rounded-3 mb-0">
+                    <h6 class="fw-bold mb-1">💡 Conselho Personalizado</h6>
+                    <p class="mb-0 small">${View.escapeHTML(rotina.conselho)}</p>
+                </div>
+            `;
+            document.getElementById('wizard-resultado').classList.remove('d-none');
+            document.getElementById('btn-wizard-aplicar').classList.remove('d-none');
+        } catch (e) {
+            View.notify('Erro: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph ph-sparkle me-1"></i> Gerar Minha Rotina';
+        }
+    },
+
+    async aplicarRotinaIA() {
+        if (!this._rotinaGerada) return;
+        const r = this._rotinaGerada;
+
+        // Definir meta semanal
+        if (r.metaSemanal) {
+            Model.atualizarTextoMetaSemanal(r.metaSemanal);
+        }
+
+        // Adicionar hábitos
+        if (r.habitos && r.habitos.length) {
+            const diasSemana = [0,1,2,3,4,5,6];
+            for (const h of r.habitos) await Model.addHabito(h, diasSemana);
+        }
+
+        // Adicionar meta trimestral
+        if (r.metaTrimestral) {
+            Model.addMetaTrimestral(r.metaTrimestral);
+        }
+
+        this.refreshDash();
+        View.toggleModal('modalWizardIA', 'hide');
+        View.notify('🎉 Rotina aplicada com sucesso!', 'success');
+        this._rotinaGerada = null;
+    },
+
+    // ==========================================================
+    // --- FASE 4: NOTIFICAÇÕES ---
+    // ==========================================================
+    _notifTimers: [],
+
+    salvarNotificacoes() {
+        const habAtivo = document.getElementById('notif-habitos-ativo')?.checked;
+        const habHora = document.getElementById('notif-habitos-hora')?.value;
+        const resAtivo = document.getElementById('notif-resumo-ativo')?.checked;
+        const resHora = document.getElementById('notif-resumo-hora')?.value;
+
+        if (!Model.usuario.config.notificacoes) Model.usuario.config.notificacoes = {};
+        Model.usuario.config.notificacoes = {
+            habitos: { ativo: habAtivo, hora: habHora },
+            resumoDiario: { ativo: resAtivo, hora: resHora }
+        };
+        Model.salvar();
+        this._agendarNotificacoes();
+        View.notify('Notificações salvas!');
+    },
+
+    _agendarNotificacoes() {
+        this._notifTimers.forEach(t => clearTimeout(t));
+        this._notifTimers = [];
+
+        if (!('Notification' in window)) return;
+
+        const cfg = Model.usuario.config.notificacoes || {};
+
+        const agendar = (hora, mensagem) => {
+            if (!hora) return;
+            const [hh, mm] = hora.split(':').map(Number);
+            const agora = new Date();
+            const alvo = new Date();
+            alvo.setHours(hh, mm, 0, 0);
+            if (alvo <= agora) alvo.setDate(alvo.getDate() + 1);
+            const delay = alvo - agora;
+            const t = setTimeout(() => {
+                if (Notification.permission === 'granted') {
+                    new Notification('Focus Coach Pro', { body: mensagem, icon: '/icon-192.png' });
+                }
+                // reagendar para amanhã
+                this._agendarNotificacoes();
+            }, delay);
+            this._notifTimers.push(t);
+        };
+
+        if (cfg.habitos?.ativo) {
+            Notification.requestPermission().then(p => {
+                if (p === 'granted') agendar(cfg.habitos.hora, '⚡ Hora de marcar seus hábitos do dia!');
+            });
+        }
+        if (cfg.resumoDiario?.ativo) {
+            Notification.requestPermission().then(p => {
+                if (p === 'granted') agendar(cfg.resumoDiario.hora, '📊 Como foi seu dia? Veja seu resumo no Focus!');
+            });
+        }
+    },
+
+    _carregarConfigsNotif() {
+        const cfg = Model.usuario.config.notificacoes || {};
+        const habEl = document.getElementById('notif-habitos-ativo');
+        const habHora = document.getElementById('notif-habitos-hora');
+        const resEl = document.getElementById('notif-resumo-ativo');
+        const resHora = document.getElementById('notif-resumo-hora');
+        if (habEl && cfg.habitos) { habEl.checked = cfg.habitos.ativo; }
+        if (habHora && cfg.habitos?.hora) { habHora.value = cfg.habitos.hora; }
+        if (resEl && cfg.resumoDiario) { resEl.checked = cfg.resumoDiario.ativo; }
+        if (resHora && cfg.resumoDiario?.hora) { resHora.value = cfg.resumoDiario.hora; }
+    },
+
+    // ==========================================================
+    // --- FASE 4: HOBBIES ---
+    // ==========================================================
+    abrirFormHobby() {
+        const nomeEl = document.getElementById('hobby-nome');
+        if (nomeEl) nomeEl.value = '';
+        View.toggleModal('modalFormHobby', 'show');
+        setTimeout(() => nomeEl?.focus(), 400);
+    },
+
+    salvarHobby() {
+        const nome = document.getElementById('hobby-nome')?.value.trim();
+        const cat = document.getElementById('hobby-categoria')?.value;
+        if (!nome) return View.notify('Dê um nome ao hobby.', 'warning');
+        Model.addHobby(nome, cat);
+        View.toggleModal('modalFormHobby', 'hide');
+        View.renderHobbies(Model.getHobbies());
+        View.notify('Hobby adicionado! 🎮');
+    },
+
+    checkinHobby(id) {
+        Model.checkinHobby(id);
+        View.renderHobbies(Model.getHobbies());
+        View.notify('✅ Check-in registrado!', 'success');
+    },
+
+    delHobby(id) {
+        if (!confirm('Remover este hobby?')) return;
+        Model.delHobby(id);
+        View.renderHobbies(Model.getHobbies());
+    },
+
+    // ==========================================================
+    // --- FASE 4: VIAGENS ---
+    // ==========================================================
+    _viagemDetalheId: null,
+
+    abrirViagens() {
+        const el = document.getElementById('offcanvasViagens');
+        if (!el) return;
+        const canvas = bootstrap.Offcanvas.getInstance(el) || new bootstrap.Offcanvas(el);
+        canvas.show();
+        setTimeout(() => View.renderListaViagens(Model.getViagens()), 100);
+    },
+
+    abrirFormViagem(id = null) {
+        document.getElementById('viagem-edit-id').value = id || '';
+        document.getElementById('titulo-form-viagem').textContent = id ? 'Editar Viagem' : 'Nova Viagem';
+        if (id) {
+            const v = Model.getViagens().find(x => x.id === id);
+            if (v) {
+                document.getElementById('viagem-nome').value = v.nome || '';
+                document.getElementById('viagem-destino').value = v.destino || '';
+                document.getElementById('viagem-data-ida').value = v.dataIda || '';
+                document.getElementById('viagem-data-volta').value = v.dataVolta || '';
+                document.getElementById('viagem-orcamento').value = v.orcamento || '';
+                document.getElementById('viagem-gasto').value = v.gasto || '';
+            }
+        } else {
+            ['viagem-nome','viagem-destino','viagem-data-ida','viagem-data-volta','viagem-orcamento','viagem-gasto'].forEach(f => {
+                document.getElementById(f).value = '';
+            });
+        }
+        View.toggleModal('modalFormViagem', 'show');
+    },
+
+    salvarViagem() {
+        const id = document.getElementById('viagem-edit-id').value;
+        const dados = {
+            nome: document.getElementById('viagem-nome').value.trim(),
+            destino: document.getElementById('viagem-destino').value.trim(),
+            dataIda: document.getElementById('viagem-data-ida').value,
+            dataVolta: document.getElementById('viagem-data-volta').value,
+            orcamento: parseFloat(document.getElementById('viagem-orcamento').value) || 0,
+            gasto: parseFloat(document.getElementById('viagem-gasto').value) || 0
+        };
+        if (!dados.nome) return View.notify('Nome obrigatório.', 'warning');
+        if (id) Model.updateViagem(id, dados);
+        else Model.addViagem(dados);
+        View.toggleModal('modalFormViagem', 'hide');
+        View.renderListaViagens(Model.getViagens());
+        View.notify('Viagem salva!', 'success');
+    },
+
+    delViagem(id) {
+        if (!confirm('Remover esta viagem?')) return;
+        Model.delViagem(id);
+        View.renderListaViagens(Model.getViagens());
+    },
+
+    abrirDetalheViagem(id) {
+        this._viagemDetalheId = id;
+        const v = Model.getViagens().find(x => x.id === id);
+        View.renderDetalheViagem(v);
+        // Switch to detail tab
+        const tabBtn = document.getElementById('tab-viagem-detalhe-btn');
+        if (tabBtn) new bootstrap.Tab(tabBtn).show();
+    },
+
+    addItemChecklist(viagemId) {
+        const input = document.getElementById('novo-item-checklist');
+        const texto = input?.value.trim();
+        if (!texto) return;
+        Model.addItemChecklist(viagemId, texto);
+        input.value = '';
+        const v = Model.getViagens().find(x => x.id === viagemId);
+        View.renderDetalheViagem(v);
+    },
+
+    toggleItemChecklist(viagemId, itemId) {
+        Model.toggleItemChecklist(viagemId, itemId);
+        const v = Model.getViagens().find(x => x.id === viagemId);
+        View.renderDetalheViagem(v);
+    },
+
+    delItemChecklist(viagemId, itemId) {
+        Model.delItemChecklist(viagemId, itemId);
+        const v = Model.getViagens().find(x => x.id === viagemId);
+        View.renderDetalheViagem(v);
+    },
+
+    verDiaFinanceiro(dia, mes, ano) {
+        const container = document.getElementById('fin-detalhe-dia');
+        if (!container) return;
+        const diasPorDia = Model.getTransacoesPorDia(mes, ano);
+        const ts = diasPorDia[dia] || [];
+        if (ts.length === 0) { container.innerHTML = ''; return; }
+
+        const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+        const itens = ts.map(t => {
+            const cor = t.tipo === 'receita' ? 'text-success' : t.tipo === 'investimento' ? 'text-info' : 'text-danger';
+            const sinal = t.tipo === 'receita' ? '+' : '-';
+            return `<div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <div>
+                    <div class="small fw-medium">${View.escapeHTML(t.descricao)}</div>
+                    <div class="text-muted" style="font-size: 0.7rem;">${View.escapeHTML(t.categoria)}</div>
+                </div>
+                <span class="fw-bold ${cor}">${sinal}${fmt(t.valor)}</span>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="card border-0 bg-body-tertiary rounded-3 p-3">
+                <h6 class="fw-bold mb-2">Dia ${dia}</h6>
+                ${itens}
+            </div>`;
     }
 };

@@ -117,7 +117,19 @@ export const View = {
 
     applyTheme(tema) {
         const t = tema || Model.usuario.config.tema || 'light';
-        document.documentElement.setAttribute('data-bs-theme', t);
+        // light/dark go to data-bs-theme; color themes go to data-tema
+        const COLOR_TEMAS = ['ameixa', 'floresta', 'papel', 'midnight'];
+        if (COLOR_TEMAS.includes(t)) {
+            document.documentElement.setAttribute('data-bs-theme', t === 'midnight' ? 'dark' : t === 'papel' ? 'light' : 'light');
+            document.documentElement.setAttribute('data-tema', t);
+        } else {
+            document.documentElement.setAttribute('data-bs-theme', t);
+            document.documentElement.removeAttribute('data-tema');
+        }
+        // Update swatch active state
+        document.querySelectorAll('.tema-swatch').forEach(sw => {
+            sw.classList.toggle('ativo', sw.dataset.tema === t);
+        });
     },
 
     alternarHistorico() {
@@ -291,6 +303,7 @@ export const View = {
         this.renderSono();
         this.renderTreino();
         this.renderVicios();
+        this.renderHobbies(Model.getHobbies());
     },
 
     renderHidratacao() {
@@ -513,6 +526,449 @@ export const View = {
                     <button class="btn btn-primary" onclick="App.Controller.adicionarVicio()">
                         <i class="ph ph-plus"></i>
                     </button>
+                </div>
+            </div>
+        `;
+    },
+
+    // ==========================================================
+    // --- FINANCEIRO ---
+    // ==========================================================
+    _fmt(v) {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+    },
+
+    renderResumoFinanceiro(mesRef) {
+        const container = document.getElementById('fin-resumo');
+        if (!container) return;
+        const agora = mesRef || new Date();
+        const mes = agora.getMonth();
+        const ano = agora.getFullYear();
+        const resumo = Model.getResumoMes(mes, ano);
+        const saldo = Model.getSaldoAtual();
+        const fmt = this._fmt.bind(this);
+
+        const taxaPoupanca = resumo.receitas > 0
+            ? Math.max(0, Math.round(((resumo.receitas - resumo.despesas) / resumo.receitas) * 100))
+            : 0;
+
+        const despesasMes = resumo.transacoes.filter(t => t.tipo === 'despesa');
+        const catMap = {};
+        despesasMes.forEach(t => { catMap[t.categoria] = (catMap[t.categoria] || 0) + t.valor; });
+
+        const nomeMes = agora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+        container.innerHTML = `
+            <div class="card border-0 rounded-4 text-white mb-3 overflow-hidden"
+                style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);">
+                <div class="card-body p-4 text-center">
+                    <small class="opacity-50 text-uppercase fw-bold small">Saldo Total</small>
+                    <div class="display-4 fw-bold my-2 ${saldo >= 0 ? 'text-success' : 'text-danger'}">${fmt(saldo)}</div>
+                    <small class="opacity-75">Acumulado de todas as receitas − despesas</small>
+                </div>
+            </div>
+
+            <h6 class="fw-bold text-muted text-uppercase small mb-2 text-capitalize">${nomeMes}</h6>
+            <div class="row g-2 mb-3">
+                <div class="col-4">
+                    <div class="card border-0 bg-success bg-opacity-10 rounded-3 p-2 text-center">
+                        <div class="small fw-bold text-success">${fmt(resumo.receitas)}</div>
+                        <div class="text-muted text-uppercase" style="font-size: 0.65rem;">Receitas</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="card border-0 bg-danger bg-opacity-10 rounded-3 p-2 text-center">
+                        <div class="small fw-bold text-danger">${fmt(resumo.despesas)}</div>
+                        <div class="text-muted text-uppercase" style="font-size: 0.65rem;">Despesas</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="card border-0 bg-info bg-opacity-10 rounded-3 p-2 text-center">
+                        <div class="small fw-bold text-info">${fmt(resumo.investimentos)}</div>
+                        <div class="text-muted text-uppercase" style="font-size: 0.65rem;">Invest.</div>
+                    </div>
+                </div>
+            </div>
+
+            ${resumo.receitas > 0 ? `
+            <div class="card bg-body-tertiary border-0 rounded-3 p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small fw-bold">Taxa de Poupança</span>
+                    <span class="badge ${taxaPoupanca >= 20 ? 'bg-success' : taxaPoupanca >= 10 ? 'bg-warning text-dark' : 'bg-danger'} rounded-pill">${taxaPoupanca}%</span>
+                </div>
+                <div class="progress" style="height: 6px;">
+                    <div class="progress-bar ${taxaPoupanca >= 20 ? 'bg-success' : taxaPoupanca >= 10 ? 'bg-warning' : 'bg-danger'}"
+                        style="width: ${Math.min(taxaPoupanca, 100)}%"></div>
+                </div>
+                <small class="text-muted mt-1 d-block" style="font-size: 0.7rem;">Ideal: ≥ 20% da receita</small>
+            </div>` : ''}
+
+            ${Object.keys(catMap).length > 0 ? `
+            <div class="card bg-body-tertiary border-0 rounded-3 p-3">
+                <h6 class="fw-bold text-muted small text-uppercase mb-2">Gastos por Categoria</h6>
+                <canvas id="grafico-categorias-fin" height="160"></canvas>
+            </div>` : `<div class="text-center text-muted py-4 small"><i class="ph ph-receipt fs-1 opacity-25 d-block mb-2"></i>Nenhuma transação neste mês.</div>`}
+        `;
+
+        if (Object.keys(catMap).length > 0 && typeof Chart !== 'undefined') {
+            const canvas = document.getElementById('grafico-categorias-fin');
+            if (canvas) {
+                if (this.charts.fin) this.charts.fin.destroy();
+                this.charts.fin = new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(catMap),
+                        datasets: [{ data: Object.values(catMap), backgroundColor: ['#dc3545','#fd7e14','#ffc107','#198754','#0dcaf0','#6f42c1','#6c757d','#20c997'], borderWidth: 0 }]
+                    },
+                    options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+                });
+            }
+        }
+    },
+
+    renderFormTransacao() {
+        const container = document.getElementById('fin-lancar');
+        if (!container) return;
+        const fin = Model.getFinanceiro();
+        const tipoAtivo = container.dataset.tipo || 'despesa';
+        const cats = fin.categorias[tipoAtivo] || ['Outros'];
+        const hoje = new Date().toLocaleDateString('pt-BR');
+        const catOptions = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+
+        container.innerHTML = `
+            <div class="mb-4">
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="fin-tipo" id="fin-despesa" value="despesa" ${tipoAtivo === 'despesa' ? 'checked' : ''}>
+                    <label class="btn btn-outline-danger fw-bold" for="fin-despesa">💸 Despesa</label>
+                    <input type="radio" class="btn-check" name="fin-tipo" id="fin-receita" value="receita" ${tipoAtivo === 'receita' ? 'checked' : ''}>
+                    <label class="btn btn-outline-success fw-bold" for="fin-receita">💰 Receita</label>
+                    <input type="radio" class="btn-check" name="fin-tipo" id="fin-invest" value="investimento" ${tipoAtivo === 'investimento' ? 'checked' : ''}>
+                    <label class="btn btn-outline-info fw-bold" for="fin-invest">📈 Invest.</label>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Valor (R$)</label>
+                <input type="number" id="fin-valor" class="form-control form-control-lg border-0 bg-body-tertiary fw-bold"
+                    placeholder="0,00" step="0.01" min="0">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Descrição</label>
+                <input type="text" id="fin-descricao" class="form-control border-0 bg-body-tertiary"
+                    placeholder="Ex: Almoço, Salário, Ações..."
+                    onkeypress="if(event.key==='Enter') App.Controller.adicionarTransacao()">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Categoria</label>
+                <select id="fin-categoria" class="form-select border-0 bg-body-tertiary">${catOptions}</select>
+            </div>
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-muted text-uppercase">Data</label>
+                <input type="text" id="fin-data" class="form-control border-0 bg-body-tertiary"
+                    placeholder="DD/MM/AAAA" value="${hoje}" maxlength="10">
+            </div>
+            <button class="btn ${tipoAtivo === 'receita' ? 'btn-success' : tipoAtivo === 'investimento' ? 'btn-info' : 'btn-danger'} w-100 py-3 fw-bold rounded-3 shadow-sm"
+                onclick="App.Controller.adicionarTransacao()">
+                <i class="ph ph-plus-circle me-2"></i>Registrar
+            </button>
+        `;
+
+        container.querySelectorAll('input[name="fin-tipo"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                container.dataset.tipo = radio.value;
+                this.renderFormTransacao();
+                setTimeout(() => document.getElementById('fin-valor')?.focus(), 100);
+            });
+        });
+    },
+
+    renderHistoricoFinanceiro(busca = '') {
+        const container = document.getElementById('fin-historico');
+        if (!container) return;
+        const fin = Model.getFinanceiro();
+        const fmt = this._fmt.bind(this);
+        let ts = fin.transacoes;
+
+        if (busca) {
+            const q = busca.toLowerCase();
+            ts = ts.filter(t => t.descricao.toLowerCase().includes(q) || t.categoria.toLowerCase().includes(q));
+        }
+
+        let html = `
+            <div class="mb-3">
+                <input type="text" class="form-control border-0 bg-body-tertiary"
+                    placeholder="🔍 Buscar transação..." id="fin-busca"
+                    value="${this.escapeHTML(busca)}"
+                    oninput="App.Controller.buscarTransacoes(this.value)">
+            </div>`;
+
+        if (ts.length === 0) {
+            html += `<div class="text-center text-muted py-4"><i class="ph ph-receipt fs-1 opacity-25 d-block mb-2"></i>Nenhuma transação encontrada.</div>`;
+        } else {
+            let dataAtual = '';
+            ts.forEach(t => {
+                if (t.data !== dataAtual) {
+                    dataAtual = t.data;
+                    html += `<div class="text-muted fw-bold text-uppercase mt-3 mb-1" style="font-size: 0.7rem;">${t.data}</div>`;
+                }
+                const corTipo = t.tipo === 'receita' ? 'text-success' : t.tipo === 'investimento' ? 'text-info' : 'text-danger';
+                const sinal = t.tipo === 'receita' ? '+' : '-';
+                const icone = t.tipo === 'receita' ? 'ph-arrow-down-left text-success' : t.tipo === 'investimento' ? 'ph-trend-up text-info' : 'ph-arrow-up-right text-danger';
+                html += `
+                <div class="d-flex justify-content-between align-items-center p-2 mb-1 rounded-3 bg-body-secondary">
+                    <div class="d-flex align-items-center gap-2 overflow-hidden">
+                        <div class="rounded-circle bg-body d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;">
+                            <i class="ph ${icone}"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="fw-medium small text-truncate">${this.escapeHTML(t.descricao)}</div>
+                            <div class="text-muted" style="font-size: 0.7rem;">${this.escapeHTML(t.categoria)}</div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                        <span class="fw-bold ${corTipo} small">${sinal}${fmt(t.valor)}</span>
+                        <button class="btn btn-sm btn-link text-danger p-0 opacity-25 hover-opacity-100"
+                            onclick="App.Controller.delTransacao('${t.id}')">
+                            <i class="ph ph-x"></i>
+                        </button>
+                    </div>
+                </div>`;
+            });
+        }
+
+        container.innerHTML = html;
+    },
+
+    renderCalendarioFinanceiro(mesRef) {
+        const container = document.getElementById('fin-calendario');
+        if (!container) return;
+        const agora = mesRef || new Date();
+        const mes = agora.getMonth();
+        const ano = agora.getFullYear();
+        const diasPorDia = Model.getTransacoesPorDia(mes, ano);
+        const nomeMes = agora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+        const primeiroDia = new Date(ano, mes, 1).getDay();
+        const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+        const hoje = new Date().getDate();
+        const mesHoje = new Date().getMonth();
+        const anoHoje = new Date().getFullYear();
+
+        const diasSemana = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+        let gridHtml = '<div class="calendario-grid">';
+        diasSemana.forEach(d => { gridHtml += `<div class="cal-header">${d}</div>`; });
+        for (let i = 0; i < primeiroDia; i++) gridHtml += '<div class="cal-dia vazio"></div>';
+
+        for (let dia = 1; dia <= ultimoDia; dia++) {
+            const ts = diasPorDia[dia] || [];
+            const temReceita = ts.some(t => t.tipo === 'receita');
+            const temDespesa = ts.some(t => t.tipo === 'despesa');
+            const temInvest = ts.some(t => t.tipo === 'investimento');
+            const ehHoje = dia === hoje && mes === mesHoje && ano === anoHoje;
+
+            gridHtml += `
+                <div class="cal-dia ${ehHoje ? 'cal-hoje' : ''} ${ts.length > 0 ? 'cal-com-lancamentos' : ''}"
+                    ${ts.length > 0 ? `onclick="App.Controller.verDiaFinanceiro(${dia}, ${mes}, ${ano})"` : ''}>
+                    <span class="cal-num">${dia}</span>
+                    ${ts.length > 0 ? `<div class="cal-dots">
+                        ${temReceita ? '<span class="cal-dot bg-success"></span>' : ''}
+                        ${temDespesa ? '<span class="cal-dot bg-danger"></span>' : ''}
+                        ${temInvest ? '<span class="cal-dot bg-info"></span>' : ''}
+                    </div>` : ''}
+                </div>`;
+        }
+        gridHtml += '</div>';
+
+        container.innerHTML = `
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <button class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                    style="width:32px;height:32px;" onclick="App.Controller.navegarCalFin(-1)">
+                    <i class="ph ph-caret-left"></i>
+                </button>
+                <h6 class="fw-bold text-capitalize mb-0">${nomeMes}</h6>
+                <button class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                    style="width:32px;height:32px;" onclick="App.Controller.navegarCalFin(1)">
+                    <i class="ph ph-caret-right"></i>
+                </button>
+            </div>
+            ${gridHtml}
+            <div class="d-flex gap-3 justify-content-center mt-3">
+                <span class="small text-muted d-flex align-items-center gap-1"><span class="cal-dot bg-success d-inline-block"></span>Receita</span>
+                <span class="small text-muted d-flex align-items-center gap-1"><span class="cal-dot bg-danger d-inline-block"></span>Despesa</span>
+                <span class="small text-muted d-flex align-items-center gap-1"><span class="cal-dot bg-info d-inline-block"></span>Invest.</span>
+            </div>
+            <div id="fin-detalhe-dia" class="mt-3"></div>
+        `;
+    },
+
+    // ==========================================================
+    // --- NOTAS ---
+    // ==========================================================
+    renderListaNotas(busca = '') {
+        const container = document.getElementById('notas-lista');
+        if (!container) return;
+        let notas = Model.getNotas();
+        if (busca) {
+            const q = busca.toLowerCase();
+            notas = notas.filter(n => n.titulo.toLowerCase().includes(q) || n.conteudo.toLowerCase().includes(q));
+        }
+
+        if (notas.length === 0) {
+            container.innerHTML = `<div class="text-center text-muted py-5"><i class="ph ph-note fs-1 opacity-25 d-block mb-2"></i>${busca ? 'Nenhuma nota encontrada.' : 'Nenhuma nota ainda.<br>Crie a primeira!'}</div>`;
+            return;
+        }
+
+        container.innerHTML = notas.map(n => {
+            const data = new Date(n.atualizadaEm || n.criadaEm).toLocaleDateString('pt-BR');
+            const preview = n.conteudo.replace(/\n/g, ' ').substring(0, 80);
+            return `
+            <div class="nota-item card border-0 rounded-3 bg-body-secondary mb-2 p-3"
+                onclick="App.Controller.abrirNotaEditor('${n.id}')" style="cursor: pointer;">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h6 class="fw-bold mb-1 text-truncate flex-grow-1 me-2">${this.escapeHTML(n.titulo)}</h6>
+                    <button class="btn btn-sm btn-link text-danger p-0 flex-shrink-0 opacity-25 hover-opacity-100"
+                        onclick="event.stopPropagation(); App.Controller.delNota('${n.id}')">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </div>
+                <p class="text-muted small mb-1 text-truncate">${this.escapeHTML(preview)}${n.conteudo.length > 80 ? '…' : ''}</p>
+                <small class="text-muted opacity-50" style="font-size: 0.7rem;">${data}</small>
+            </div>`;
+        }).join('');
+    },
+
+    renderNotaEditor(id) {
+        const container = document.getElementById('notas-editor');
+        const painel = document.getElementById('notas-painel');
+        const lista = document.getElementById('notas-painel-lista');
+        if (!container || !painel || !lista) return;
+
+        const nota = id ? Model.getNotas().find(n => n.id === id) : null;
+        painel.classList.add('d-none');
+        lista.classList.remove('d-none');
+
+        container.classList.remove('d-none');
+        container.dataset.notaId = id || '';
+        document.getElementById('nota-titulo-input').value = nota ? nota.titulo : '';
+        document.getElementById('nota-conteudo-input').value = nota ? nota.conteudo : '';
+        setTimeout(() => document.getElementById('nota-titulo-input').focus(), 100);
+    },
+
+    fecharNotaEditor() {
+        const container = document.getElementById('notas-editor');
+        const painel = document.getElementById('notas-painel');
+        const lista = document.getElementById('notas-painel-lista');
+        if (!container || !painel || !lista) return;
+        container.classList.add('d-none');
+        lista.classList.add('d-none');
+        painel.classList.remove('d-none');
+    },
+
+    // ==========================================================
+    // --- TIME BLOCKING ---
+    // ==========================================================
+    renderAgenda(dataRef) {
+        const container = document.getElementById('agenda-timeline');
+        if (!container) return;
+
+        const hoje = dataRef || new Date();
+        const dataKey = hoje.toLocaleDateString('pt-BR');
+        const nomeData = hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+        const blocos = Model.getBlocosDia(dataKey);
+        const blocosMap = {};
+        blocos.forEach(b => { blocosMap[b.horario] = b; });
+
+        const slots = [];
+        for (let h = 7; h <= 22; h++) {
+            slots.push(`${String(h).padStart(2, '0')}:00`);
+            if (h < 22) slots.push(`${String(h).padStart(2, '0')}:30`);
+        }
+
+        const tarefasAtuais = (Model.usuario.tarefas || []).filter(t => !t.isInbox);
+        const tarefaOptions = tarefasAtuais.map(t =>
+            `<option value="${this.escapeHTML(t.texto)}">${this.escapeHTML(t.texto.substring(0, 50))}</option>`
+        ).join('');
+
+        const agora = new Date();
+        const horaAtual = `${String(agora.getHours()).padStart(2,'0')}:${agora.getMinutes() < 30 ? '00' : '30'}`;
+        const ehHoje = hoje.toLocaleDateString() === new Date().toLocaleDateString();
+
+        let slotsHtml = slots.map(slot => {
+            const bloco = blocosMap[slot];
+            const isNow = ehHoje && slot === horaAtual;
+
+            if (bloco) {
+                const alturaMin = Math.max(bloco.duracao, 30);
+                const linhas = Math.ceil(alturaMin / 30);
+                return `
+                <div class="agenda-slot ${isNow ? 'agenda-slot-now' : ''}" data-horario="${slot}" data-linhas="${linhas}">
+                    <div class="agenda-hora">${slot}</div>
+                    <div class="agenda-bloco-ocupado rounded-3 p-2 flex-grow-1"
+                        style="border-left: 3px solid var(--bs-primary);">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="fw-medium small text-truncate flex-grow-1 me-1">${this.escapeHTML(bloco.texto)}</div>
+                            <button class="btn btn-sm btn-link text-danger p-0 opacity-50"
+                                onclick="App.Controller.delBlocoAgenda('${dataKey}', '${bloco.id}')">
+                                <i class="ph ph-x"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted opacity-75">${bloco.duracao}min</small>
+                    </div>
+                </div>`;
+            }
+
+            return `
+            <div class="agenda-slot ${isNow ? 'agenda-slot-now' : ''}" data-horario="${slot}">
+                <div class="agenda-hora">${slot}</div>
+                <div class="agenda-slot-vazio flex-grow-1"
+                    onclick="App.Controller.abrirFormBloco('${dataKey}', '${slot}')">
+                    <span class="agenda-slot-add opacity-0">+ Adicionar</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <button class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                    style="width:32px;height:32px;" onclick="App.Controller.navegarAgenda(-1)">
+                    <i class="ph ph-caret-left"></i>
+                </button>
+                <div class="text-center">
+                    <h6 class="fw-bold text-capitalize mb-0">${nomeData}</h6>
+                    ${ehHoje ? '<span class="badge bg-primary rounded-pill px-2 small">Hoje</span>' : ''}
+                </div>
+                <button class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                    style="width:32px;height:32px;" onclick="App.Controller.navegarAgenda(1)">
+                    <i class="ph ph-caret-right"></i>
+                </button>
+            </div>
+            <div class="agenda-container">${slotsHtml}</div>
+            <div id="form-bloco-agenda" class="card border-0 bg-body-tertiary rounded-3 p-3 mt-3 d-none">
+                <h6 class="fw-bold mb-3" id="form-bloco-titulo">Adicionar bloco</h6>
+                <input type="hidden" id="bloco-data" value="">
+                <input type="hidden" id="bloco-horario" value="">
+                <div class="mb-2">
+                    <label class="form-label small fw-bold text-muted text-uppercase">Tarefa / Atividade</label>
+                    <input list="lista-tarefas-agenda" type="text" id="bloco-texto" class="form-control border-0 bg-body"
+                        placeholder="Digite ou selecione uma tarefa..."
+                        onkeypress="if(event.key==='Enter') App.Controller.salvarBlocoAgenda()">
+                    <datalist id="lista-tarefas-agenda">${tarefaOptions}</datalist>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted text-uppercase">Duração</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="bloco-dur" id="dur-30" value="30">
+                        <label class="btn btn-outline-secondary btn-sm" for="dur-30">30min</label>
+                        <input type="radio" class="btn-check" name="bloco-dur" id="dur-60" value="60" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="dur-60">1h</label>
+                        <input type="radio" class="btn-check" name="bloco-dur" id="dur-90" value="90">
+                        <label class="btn btn-outline-secondary btn-sm" for="dur-90">1h30</label>
+                        <input type="radio" class="btn-check" name="bloco-dur" id="dur-120" value="120">
+                        <label class="btn btn-outline-secondary btn-sm" for="dur-120">2h</label>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary flex-grow-1" onclick="App.Controller.salvarBlocoAgenda()">Salvar</button>
+                    <button class="btn btn-outline-secondary" onclick="document.getElementById('form-bloco-agenda').classList.add('d-none')">Cancelar</button>
                 </div>
             </div>
         `;
@@ -893,5 +1349,142 @@ export const View = {
         `;
 
         container.innerHTML = html;
+    },
+
+    // ==========================================================
+    // --- HOBBIES ---
+    // ==========================================================
+    renderHobbies(hobbies) {
+        const el = document.getElementById('bemestar-hobbies');
+        if (!el) return;
+        const CATEGORIAS = ['🎮 Games', '🎵 Música', '📚 Leitura', '🏃 Esporte', '🎨 Arte', '🌿 Natureza', '✈️ Viagens', '🍳 Culinária', '💻 Tech', '🎯 Outro'];
+
+        let html = `
+            <div class="mb-3">
+                <p class="text-muted small">Registre seus hobbies e mantenha a sequência de check-ins.</p>
+                <button class="btn btn-primary btn-sm w-100 mb-3" onclick="App.Controller.abrirFormHobby()">
+                    <i class="ph ph-plus me-1"></i> Novo Hobby
+                </button>
+            </div>
+        `;
+
+        if (!hobbies.length) {
+            html += `<div class="text-center text-muted py-4"><i class="ph ph-game-controller fs-1 d-block mb-2"></i>Nenhum hobby cadastrado.</div>`;
+        } else {
+            hobbies.forEach(h => {
+                const hoje = new Date().toLocaleDateString('pt-BR');
+                const fezHoje = h.ultimoCheckin === hoje;
+                const streakLabel = h.streak >= 30 ? '👑' : h.streak >= 14 ? '🔥' : h.streak >= 7 ? '⚡' : '🌱';
+                html += `
+                    <div class="card border-0 shadow-sm rounded-3 mb-2 hobby-card">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <div class="fw-bold">${this.escapeHTML(h.nome)}</div>
+                                    <div class="small text-muted">${this.escapeHTML(h.categoria)}</div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    ${h.streak > 0 ? `<span class="streak-hobby">${streakLabel} ${h.streak}d</span>` : ''}
+                                    <button class="btn btn-sm ${fezHoje ? 'btn-success' : 'btn-outline-primary'} rounded-pill"
+                                        onclick="App.Controller.checkinHobby('${h.id}')" ${fezHoje ? 'disabled' : ''}>
+                                        ${fezHoje ? '<i class="ph ph-check"></i>' : 'Check-in'}
+                                    </button>
+                                    <button class="btn btn-sm btn-link text-danger p-0" onclick="App.Controller.delHobby('${h.id}')">
+                                        <i class="ph ph-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        el.innerHTML = html;
+    },
+
+    // ==========================================================
+    // --- VIAGENS ---
+    // ==========================================================
+    renderListaViagens(viagens) {
+        const el = document.getElementById('viagens-lista');
+        if (!el) return;
+        if (!viagens.length) {
+            el.innerHTML = `<div class="text-center text-muted py-4"><i class="ph ph-airplane fs-1 d-block mb-2"></i>Nenhuma viagem planejada.</div>`;
+            return;
+        }
+        el.innerHTML = viagens.map(v => {
+            const orcamento = parseFloat(v.orcamento) || 0;
+            const gasto = parseFloat(v.gasto) || 0;
+            const pct = orcamento > 0 ? Math.min(100, Math.round((gasto / orcamento) * 100)) : 0;
+            const cor = pct >= 90 ? 'danger' : pct >= 70 ? 'warning' : 'success';
+            return `
+                <div class="card border-0 shadow-sm rounded-3 mb-3 viagem-card">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div>
+                                <div class="fw-bold">${this.escapeHTML(v.nome)}</div>
+                                <div class="small text-muted"><i class="ph ph-map-pin me-1"></i>${this.escapeHTML(v.destino)}</div>
+                            </div>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-primary" onclick="App.Controller.abrirDetalheViagem('${v.id}')">
+                                    <i class="ph ph-list-checks"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="App.Controller.abrirFormViagem('${v.id}')">
+                                    <i class="ph ph-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="App.Controller.delViagem('${v.id}')">
+                                    <i class="ph ph-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        ${v.dataIda ? `<div class="small text-muted mb-2"><i class="ph ph-calendar me-1"></i>${this.escapeHTML(v.dataIda)} → ${this.escapeHTML(v.dataVolta || '?')}</div>` : ''}
+                        ${orcamento > 0 ? `
+                        <div class="mb-1">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Orçamento</span>
+                                <span class="text-${cor}">R$ ${gasto.toFixed(2)} / R$ ${orcamento.toFixed(2)}</span>
+                            </div>
+                            <div class="progress viagem-progress-bar">
+                                <div class="progress-bar bg-${cor}" style="width:${pct}%"></div>
+                            </div>
+                        </div>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    renderDetalheViagem(v) {
+        const el = document.getElementById('viagem-detalhe-corpo');
+        if (!el || !v) return;
+        const checklist = v.checklist || [];
+        const feitos = checklist.filter(i => i.feito).length;
+        el.innerHTML = `
+            <h6 class="fw-bold mb-1">${this.escapeHTML(v.nome)}</h6>
+            <p class="small text-muted mb-3"><i class="ph ph-map-pin me-1"></i>${this.escapeHTML(v.destino)}</p>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold small">Checklist de Mala</span>
+                <span class="badge bg-primary-subtle text-primary">${feitos}/${checklist.length}</span>
+            </div>
+            <div id="checklist-viagem-${v.id}" class="mb-3">
+                ${checklist.map(item => `
+                    <div class="checklist-item">
+                        <input type="checkbox" class="form-check-input" ${item.feito ? 'checked' : ''}
+                            onchange="App.Controller.toggleItemChecklist('${v.id}','${item.id}')">
+                        <span class="small flex-grow-1 ${item.feito ? 'text-decoration-line-through text-muted' : ''}">${this.escapeHTML(item.texto)}</span>
+                        <button class="btn btn-sm btn-link text-danger p-0" onclick="App.Controller.delItemChecklist('${v.id}','${item.id}')">
+                            <i class="ph ph-x"></i>
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="input-group input-group-sm">
+                <input type="text" id="novo-item-checklist" class="form-control" placeholder="Novo item..."
+                    onkeypress="if(event.key==='Enter') App.Controller.addItemChecklist('${v.id}')">
+                <button class="btn btn-primary" onclick="App.Controller.addItemChecklist('${v.id}')">
+                    <i class="ph ph-plus"></i>
+                </button>
+            </div>
+        `;
     }
 };

@@ -21,7 +21,13 @@ export const Model = {
             apiKey: '',
             provider: 'gemini',
             ultimoMorning: null,
-            bemestar: null
+            bemestar: null,
+            financeiro: null,
+            notas: null,
+            timeBlocking: null,
+            viagens: null,
+            notificacoes: null,
+            onboardingConcluido: false
         }
     },
     chatMemory: {
@@ -149,6 +155,229 @@ export const Model = {
     },
 
     // ==========================================================
+    // --- FINANCEIRO ---
+    // ==========================================================
+    _defaultFinanceiro() {
+        return {
+            transacoes: [],
+            categorias: {
+                receita: ['Salário', 'Freelance', 'Bônus', 'Investimento', 'Outros'],
+                despesa: ['Alimentação', 'Transporte', 'Lazer', 'Moradia', 'Saúde', 'Educação', 'Assinaturas', 'Outros'],
+                investimento: ['Ações', 'FIIs', 'CDB/LCI', 'Cripto', 'Poupança', 'Outros']
+            }
+        };
+    },
+
+    getFinanceiro() {
+        if (!this.usuario.config.financeiro) {
+            this.usuario.config.financeiro = this._defaultFinanceiro();
+        }
+        return this.usuario.config.financeiro;
+    },
+
+    addTransacao(tipo, valor, descricao, categoria, data) {
+        const fin = this.getFinanceiro();
+        fin.transacoes.unshift({
+            id: crypto.randomUUID(),
+            tipo,
+            valor: parseFloat(valor),
+            descricao,
+            categoria: categoria || 'Outros',
+            data: data || new Date().toLocaleDateString('pt-BR')
+        });
+        if (fin.transacoes.length > 200) fin.transacoes = fin.transacoes.slice(0, 200);
+        this.salvarPerfilBackground();
+    },
+
+    delTransacao(id) {
+        const fin = this.getFinanceiro();
+        fin.transacoes = fin.transacoes.filter(t => t.id !== id);
+        this.salvarPerfilBackground();
+    },
+
+    getSaldoAtual() {
+        return this.getFinanceiro().transacoes.reduce((acc, t) => {
+            if (t.tipo === 'receita') return acc + t.valor;
+            if (t.tipo === 'despesa') return acc - t.valor;
+            return acc;
+        }, 0);
+    },
+
+    _parseDateBR(str) {
+        if (!str) return null;
+        const p = str.split('/');
+        if (p.length === 3) return new Date(+p[2], +p[1] - 1, +p[0]);
+        return null;
+    },
+
+    getResumoMes(mes, ano) {
+        const ts = this.getFinanceiro().transacoes.filter(t => {
+            const d = this._parseDateBR(t.data);
+            return d && d.getMonth() === mes && d.getFullYear() === ano;
+        });
+        const receitas = ts.filter(t => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0);
+        const despesas = ts.filter(t => t.tipo === 'despesa').reduce((a, t) => a + t.valor, 0);
+        const investimentos = ts.filter(t => t.tipo === 'investimento').reduce((a, t) => a + t.valor, 0);
+        return { receitas, despesas, investimentos, saldo: receitas - despesas - investimentos, transacoes: ts };
+    },
+
+    getTransacoesPorDia(mes, ano) {
+        const mapa = {};
+        this.getFinanceiro().transacoes.forEach(t => {
+            const d = this._parseDateBR(t.data);
+            if (d && d.getMonth() === mes && d.getFullYear() === ano) {
+                const dia = d.getDate();
+                if (!mapa[dia]) mapa[dia] = [];
+                mapa[dia].push(t);
+            }
+        });
+        return mapa;
+    },
+
+    // ==========================================================
+    // --- NOTAS ---
+    // ==========================================================
+    getNotas() {
+        if (!this.usuario.config.notas) this.usuario.config.notas = [];
+        return this.usuario.config.notas;
+    },
+
+    addNota(titulo, conteudo) {
+        const id = crypto.randomUUID();
+        this.getNotas().unshift({ id, titulo: titulo || 'Sem título', conteudo, criadaEm: new Date().toISOString() });
+        if (this.usuario.config.notas.length > 100) this.usuario.config.notas.pop();
+        this.salvarPerfilBackground();
+        return id;
+    },
+
+    updateNota(id, titulo, conteudo) {
+        const n = this.getNotas().find(x => x.id === id);
+        if (n) { n.titulo = titulo || 'Sem título'; n.conteudo = conteudo; n.atualizadaEm = new Date().toISOString(); this.salvarPerfilBackground(); }
+    },
+
+    delNota(id) {
+        this.usuario.config.notas = this.getNotas().filter(n => n.id !== id);
+        this.salvarPerfilBackground();
+    },
+
+    // ==========================================================
+    // --- TIME BLOCKING ---
+    // ==========================================================
+    getTimeBlocking() {
+        if (!this.usuario.config.timeBlocking) this.usuario.config.timeBlocking = {};
+        return this.usuario.config.timeBlocking;
+    },
+
+    addBlocoTempo(data, horario, texto, duracao = 60) {
+        const tb = this.getTimeBlocking();
+        if (!tb[data]) tb[data] = [];
+        tb[data] = tb[data].filter(b => b.horario !== horario);
+        tb[data].push({ id: crypto.randomUUID(), horario, texto, duracao });
+        tb[data].sort((a, b) => a.horario.localeCompare(b.horario));
+        this.salvarPerfilBackground();
+    },
+
+    delBlocoTempo(data, id) {
+        const tb = this.getTimeBlocking();
+        if (tb[data]) { tb[data] = tb[data].filter(b => b.id !== id); this.salvarPerfilBackground(); }
+    },
+
+    getBlocosDia(data) {
+        return this.getTimeBlocking()[data] || [];
+    },
+
+    // ==========================================================
+    // --- HOBBIES ---
+    // ==========================================================
+    _defaultHobbies() {
+        return [];
+    },
+
+    getHobbies() {
+        const bm = this.getBemestar();
+        if (!bm.hobbies) bm.hobbies = this._defaultHobbies();
+        return bm.hobbies;
+    },
+
+    addHobby(nome, categoria) {
+        const hobbies = this.getHobbies();
+        hobbies.push({ id: crypto.randomUUID(), nome, categoria, streak: 0, ultimoCheckin: null });
+        this.salvarPerfilBackground();
+    },
+
+    checkinHobby(id) {
+        const hoje = new Date().toLocaleDateString('pt-BR');
+        const h = this.getHobbies().find(x => x.id === id);
+        if (!h) return;
+        const ontem = new Date();
+        ontem.setDate(ontem.getDate() - 1);
+        const ontemStr = ontem.toLocaleDateString('pt-BR');
+        if (h.ultimoCheckin === hoje) return; // já fez hoje
+        h.streak = h.ultimoCheckin === ontemStr ? (h.streak || 0) + 1 : 1;
+        h.ultimoCheckin = hoje;
+        this.salvarPerfilBackground();
+    },
+
+    delHobby(id) {
+        const bm = this.getBemestar();
+        bm.hobbies = this.getHobbies().filter(h => h.id !== id);
+        this.salvarPerfilBackground();
+    },
+
+    // ==========================================================
+    // --- VIAGENS ---
+    // ==========================================================
+    _defaultViagens() {
+        return [];
+    },
+
+    getViagens() {
+        if (!this.usuario.config.viagens) this.usuario.config.viagens = this._defaultViagens();
+        return this.usuario.config.viagens;
+    },
+
+    addViagem(dados) {
+        const v = { id: crypto.randomUUID(), checklist: [], ...dados };
+        this.getViagens().unshift(v);
+        this.salvarPerfilBackground();
+        return v.id;
+    },
+
+    updateViagem(id, dados) {
+        const v = this.getViagens().find(x => x.id === id);
+        if (!v) return;
+        Object.assign(v, dados);
+        this.salvarPerfilBackground();
+    },
+
+    delViagem(id) {
+        this.usuario.config.viagens = this.getViagens().filter(v => v.id !== id);
+        this.salvarPerfilBackground();
+    },
+
+    addItemChecklist(viagemId, texto) {
+        const v = this.getViagens().find(x => x.id === viagemId);
+        if (!v) return;
+        if (!v.checklist) v.checklist = [];
+        v.checklist.push({ id: crypto.randomUUID(), texto, feito: false });
+        this.salvarPerfilBackground();
+    },
+
+    toggleItemChecklist(viagemId, itemId) {
+        const v = this.getViagens().find(x => x.id === viagemId);
+        if (!v) return;
+        const item = v.checklist.find(i => i.id === itemId);
+        if (item) { item.feito = !item.feito; this.salvarPerfilBackground(); }
+    },
+
+    delItemChecklist(viagemId, itemId) {
+        const v = this.getViagens().find(x => x.id === viagemId);
+        if (!v) return;
+        v.checklist = v.checklist.filter(i => i.id !== itemId);
+        this.salvarPerfilBackground();
+    },
+
+    // ==========================================================
     // --- 1. AUTENTICAÇÃO SUPABASE ---
     // ==========================================================
     async verificarSessao() {
@@ -271,7 +500,9 @@ export const Model = {
                 content: c.content
             }));
 
-            return !!this.usuario.nome; // Se tem nome guardado, entra direto no Dashboard
+            // Entra no Dashboard se o onboarding já foi concluído alguma vez,
+            // mesmo que o nome esteja vazio por algum motivo
+            return !!(this.usuario.config.onboardingConcluido || this.usuario.nome);
         } catch (e) {
             console.error("Erro ao puxar dados do Supabase:", e);
             return false;

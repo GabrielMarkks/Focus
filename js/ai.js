@@ -157,7 +157,41 @@ export const AI_Manager = {
         }, 'chat');
     },
 
-    // --- 5. NEGOCIADOR DE ZUMBIS ---
+    // --- 5. GERADOR DE ROTINA (AI SETUP WIZARD) ---
+    async gerarRotina(provider, apiKey, respostas) {
+        const cleanKey = apiKey ? apiKey.trim() : "";
+        if (!cleanKey) throw new Error("API Key não informada.");
+
+        const prompt = `
+            ATUE COMO: Um Coach de Alta Performance especialista em GTD, OKR e Psicologia Positiva.
+
+            O usuário respondeu um questionário de onboarding:
+            1. Objetivo de vida: "${respostas.objetivo}"
+            2. Maior dificuldade: "${respostas.dificuldade}"
+            3. Horas disponíveis por dia: "${respostas.horas}"
+            4. Área prioritária: "${respostas.area}"
+
+            SUA MISSÃO: Gerar um plano de partida personalizado.
+
+            REGRAS:
+            1. Retorne APENAS um JSON object (sem markdown, sem texto extra).
+            2. O JSON deve ter exatamente esta estrutura:
+            {
+                "habitos": ["Hábito 1 curto", "Hábito 2 curto", "Hábito 3 curto"],
+                "metaSemanal": "Uma meta semanal clara e alcançável",
+                "metaTrimestral": "Uma meta trimestral ambiciosa mas realista",
+                "conselho": "Um conselho personalizado de 1-2 frases com base na dificuldade do usuário."
+            }
+        `;
+
+        console.log(`🧙 Gerando rotina via: ${provider}`);
+
+        if (provider === 'gemini') return await this.callGeminiObject(cleanKey, prompt);
+        if (provider === 'openai') return await this.callOpenAIObject(cleanKey, prompt);
+        if (provider === 'groq') return await this.callGroqObject(cleanKey, prompt);
+    },
+
+    // --- 6. NEGOCIADOR DE ZUMBIS ---
     async negociarZumbis(provider, apiKey, tarefasZumbis) {
         const lista = tarefasZumbis.map(t => `- "${t.texto}" (Criada há ${t.dias} dias)`).join('\n');
         const prompt = `
@@ -294,6 +328,55 @@ export const AI_Manager = {
         if (!response.ok) throw new Error("Erro Groq");
         const resData = await response.json();
         return mode === 'sort' ? this.parseJSON(resData.choices[0].message.content) : resData.choices[0].message.content;
+    },
+
+    async callGeminiObject(apiKey, prompt) {
+        const model = "gemini-1.5-flash";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        if (!response.ok) { const err = await response.json(); throw new Error(err.error?.message || "Erro Gemini"); }
+        const resData = await response.json();
+        return this.parseObject(resData.candidates[0].content.parts[0].text);
+    },
+
+    async callOpenAIObject(apiKey, prompt) {
+        const url = "https://api.openai.com/v1/chat/completions";
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], temperature: 0.5 })
+        });
+        if (!response.ok) throw new Error("Erro OpenAI");
+        const resData = await response.json();
+        return this.parseObject(resData.choices[0].message.content);
+    },
+
+    async callGroqObject(apiKey, prompt) {
+        const url = "https://api.groq.com/openai/v1/chat/completions";
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: prompt }], temperature: 0.5 })
+        });
+        if (!response.ok) throw new Error("Erro Groq");
+        const resData = await response.json();
+        return this.parseObject(resData.choices[0].message.content);
+    },
+
+    parseObject(text) {
+        try {
+            let clean = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            const start = clean.indexOf('{');
+            const end = clean.lastIndexOf('}');
+            if (start !== -1 && end !== -1) clean = clean.substring(start, end + 1);
+            return JSON.parse(clean);
+        } catch (e) {
+            throw new Error("Formato inválido da IA.");
+        }
     },
 
     parseJSON(text) {
