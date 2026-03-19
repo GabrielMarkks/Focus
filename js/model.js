@@ -26,7 +26,8 @@ export const Model = {
             notas: null,
             timeBlocking: null,
             viagens: null,
-            notificacoes: null
+            notificacoes: null,
+            onboardingConcluido: false
         }
     },
     chatMemory: {
@@ -499,7 +500,9 @@ export const Model = {
                 content: c.content
             }));
 
-            return !!this.usuario.nome; // Se tem nome guardado, entra direto no Dashboard
+            // Entra no Dashboard se o onboarding já foi concluído alguma vez,
+            // mesmo que o nome esteja vazio por algum motivo
+            return !!(this.usuario.config.onboardingConcluido || this.usuario.nome);
         } catch (e) {
             console.error("Erro ao puxar dados do Supabase:", e);
             return false;

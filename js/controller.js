@@ -31,6 +31,7 @@ export const Controller = {
 
         if (perfilCompleto) {
             this.refreshDash();
+            this._agendarNotificacoes(); // iniciar após dados carregados
             setTimeout(() => {
                 const hoje = new Date().toLocaleDateString();
                 if (!Model.usuario.config) Model.usuario.config = {};
@@ -231,8 +232,6 @@ export const Controller = {
             });
         }
 
-        // Start notification scheduler after app is ready
-        setTimeout(() => this._agendarNotificacoes(), 3000);
     },
 
     proximoPasso(n) {
@@ -256,6 +255,9 @@ export const Controller = {
     finalizarOnboarding() {
         const papeis = document.getElementById('input-papeis').value.split(',');
         Model.atualizarUsuario('papeis', papeis);
+        // Marcar onboarding como concluído para nunca mais aparecer
+        Model.usuario.config.onboardingConcluido = true;
+        Model.salvar();
         if (Model.usuario.proposito) Model.addTarefa(Model.usuario.proposito, true, true, 'crescimento');
         this.refreshDash();
         View.notify(`Bem-vindo, ${Model.usuario.nome}! 🚀`);
@@ -1359,14 +1361,20 @@ export const Controller = {
     // --- FASE 4: HOBBIES ---
     // ==========================================================
     abrirFormHobby() {
-        const nome = prompt('Nome do hobby:');
-        if (!nome?.trim()) return;
-        const cats = ['🎮 Games', '🎵 Música', '📚 Leitura', '🏃 Esporte', '🎨 Arte', '🌿 Natureza', '✈️ Viagens', '🍳 Culinária', '💻 Tech', '🎯 Outro'];
-        const catIdx = parseInt(prompt(`Categoria (número):\n${cats.map((c, i) => `${i+1}. ${c}`).join('\n')}`));
-        const cat = cats[(catIdx || 1) - 1] || '🎯 Outro';
-        Model.addHobby(nome.trim(), cat);
+        const nomeEl = document.getElementById('hobby-nome');
+        if (nomeEl) nomeEl.value = '';
+        View.toggleModal('modalFormHobby', 'show');
+        setTimeout(() => nomeEl?.focus(), 400);
+    },
+
+    salvarHobby() {
+        const nome = document.getElementById('hobby-nome')?.value.trim();
+        const cat = document.getElementById('hobby-categoria')?.value;
+        if (!nome) return View.notify('Dê um nome ao hobby.', 'warning');
+        Model.addHobby(nome, cat);
+        View.toggleModal('modalFormHobby', 'hide');
         View.renderHobbies(Model.getHobbies());
-        View.notify('Hobby adicionado!');
+        View.notify('Hobby adicionado! 🎮');
     },
 
     checkinHobby(id) {

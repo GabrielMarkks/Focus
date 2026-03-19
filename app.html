@@ -1297,6 +1297,44 @@
         </div>
     </div>
 
+    <!-- MODAL FORM HOBBY -->
+    <div class="modal fade" id="modalFormHobby" tabindex="-1" style="z-index: 10060;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">🎮 Novo Hobby</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Nome</label>
+                        <input type="text" id="hobby-nome" class="form-control" placeholder="Ex: Violão, Corrida, Xadrez..."
+                            onkeypress="if(event.key==='Enter') App.Controller.salvarHobby()">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Categoria</label>
+                        <select id="hobby-categoria" class="form-select">
+                            <option>🎮 Games</option>
+                            <option>🎵 Música</option>
+                            <option>📚 Leitura</option>
+                            <option>🏃 Esporte</option>
+                            <option>🎨 Arte</option>
+                            <option>🌿 Natureza</option>
+                            <option>✈️ Viagens</option>
+                            <option>🍳 Culinária</option>
+                            <option>💻 Tech</option>
+                            <option>🎯 Outro</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="App.Controller.salvarHobby()">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL FORM VIAGEM -->
     <div class="modal fade" id="modalFormViagem" tabindex="-1" style="z-index: 10060;">
         <div class="modal-dialog modal-dialog-centered">
