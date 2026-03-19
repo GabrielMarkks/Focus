@@ -1,4 +1,4 @@
-const CACHE_NAME = 'focus-coach-v1.1.2-indexeddb';
+const CACHE_NAME = 'focus-coach-v1.2.0-sqlite';
 
 const ASSETS = [
     './',
@@ -7,16 +7,19 @@ const ASSETS = [
     './css/style.css',
     './js/main.js',
     './js/model.js',
+    './js/db.js',
     './js/view.js',
     './js/controller.js',
-    './js/ai.js', // Importante garantir que o cérebro novo esteja aqui
+    './js/ai.js',
     './js/timerWorker.js',
     './manifest.json',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',
     'https://unpkg.com/@phosphor-icons/web',
     'https://cdn.jsdelivr.net/npm/chart.js',
-    'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js'
+    'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/sql-wasm.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/sql-wasm.wasm'
 ];
 
 self.addEventListener('install', (e) => {

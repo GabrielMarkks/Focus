@@ -81,6 +81,15 @@ export async function initDB() {
     console.log('[DB] SQLite inicializado com sucesso.');
 }
 
+export async function clearDB() {
+    if (_db) { _db.close(); _db = null; }
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.deleteDatabase(IDB_NAME);
+        req.onsuccess = resolve;
+        req.onerror = reject;
+    });
+}
+
 export const DB = {
     get(key) {
         if (!_db) return null;

@@ -7,6 +7,7 @@ import {
 import {
     AI_Manager
 } from './ai.js';
+import { clearDB } from './db.js';
 
 export const Controller = {
     pendingId: null,
@@ -886,9 +887,9 @@ export const Controller = {
         r.readAsText(f);
     },
 
-    resetarDados() {
+    async resetarDados() {
         if (confirm("Apagar tudo? Isso deslogará a sessão e apagará os dados do dispositivo local.")) {
-            localStorage.clear();
+            await clearDB();
             location.reload();
         }
     },
