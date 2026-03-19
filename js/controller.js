@@ -877,5 +877,91 @@ export const Controller = {
             localStorage.clear();
             location.reload();
         }
+    },
+
+    // ==========================================================
+    // --- BEM-ESTAR ---
+    // ==========================================================
+    abrirBemEstar() {
+        const el = document.getElementById('offcanvasBemEstar');
+        if (!el) return;
+        const canvas = bootstrap.Offcanvas.getInstance(el) || new bootstrap.Offcanvas(el);
+        canvas.show();
+        setTimeout(() => View.renderBemEstar(), 100);
+    },
+
+    registrarCopo() {
+        Model.registrarCopo();
+        View.renderHidratacao();
+    },
+
+    removerCopo() {
+        Model.removerCopo();
+        View.renderHidratacao();
+    },
+
+    salvarMetaHidratacao() {
+        const val = parseInt(document.getElementById('input-meta-hidratacao')?.value);
+        if (!val || val < 1) return View.notify("Meta inválida.", "error");
+        Model.setMetaHidratacao(val);
+        View.renderHidratacao();
+        View.notify("Meta de água atualizada! 💧", "success");
+    },
+
+    registrarSono() {
+        const val = parseFloat(document.getElementById('input-sono-horas')?.value);
+        if (!val || val <= 0 || val > 24) return View.notify("Horas inválidas.", "error");
+        Model.registrarSono(val);
+        View.renderSono();
+        View.notify("Sono registrado! 😴", "success");
+    },
+
+    registrarTreino() {
+        const desc = document.getElementById('input-treino-desc')?.value.trim();
+        if (!desc) return View.notify("Descreva o treino.", "error");
+        Model.registrarTreino(desc);
+        document.getElementById('input-treino-desc').value = '';
+        View.renderTreino();
+        View.notify("Treino registrado! 💪", "success");
+    },
+
+    toggleSuplemento(nome) {
+        Model.toggleSuplemento(nome);
+        View.renderTreino();
+    },
+
+    adicionarVicio() {
+        const nome = document.getElementById('input-vicio-nome')?.value.trim();
+        if (!nome) return View.notify("Dê um nome ao hábito que quer evitar.", "error");
+        Model.addVicio(nome);
+        document.getElementById('input-vicio-nome').value = '';
+        View.renderVicios();
+        View.notify("Monitoramento iniciado! Você consegue! 💪", "success");
+    },
+
+    checkInVicio(id) {
+        const ok = Model.checkInVicio(id);
+        if (ok) {
+            View.renderVicios();
+            View.playReward();
+            View.notify("Mais um dia mantido! Continue assim! 🏆", "success");
+        } else {
+            View.notify("Você já marcou hoje.", "primary");
+        }
+    },
+
+    resetarVicio(id) {
+        if (confirm("Registrar uma recaída vai zerar o streak. Confirma?")) {
+            Model.resetarVicio(id);
+            View.renderVicios();
+            View.notify("Recomeço conta. Você consegue de novo! 💙", "primary");
+        }
+    },
+
+    delVicio(id) {
+        if (confirm("Remover este monitoramento?")) {
+            Model.delVicio(id);
+            View.renderVicios();
+        }
     }
 };
