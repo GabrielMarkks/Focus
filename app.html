@@ -59,6 +59,11 @@
                     <i class="ph ph-chart-pie-slice fs-5"></i>
                 </button>
 
+                <button id="btn-filtro-foco" class="btn btn-outline-secondary btn-sm rounded-pill px-2"
+                    onclick="App.Controller.toggleFiltroFoco()" title="Filtro de Prioridades">
+                    <i class="ph ph-funnel-simple"></i>
+                </button>
+
                 <div class="dropdown">
                     <button class="btn btn-icon text-body" data-bs-toggle="dropdown"><i
                             class="ph ph-dots-three-vertical fs-5"></i></button>
@@ -67,6 +72,18 @@
                             <button class="dropdown-item fw-bold text-primary"
                                 onclick="App.Controller.abrirVisaoMacro()">
                                 <i class="ph ph-telescope me-2"></i> Visão Macro (3 Meses)
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item fw-bold text-warning"
+                                onclick="App.Controller.abrirAgenda()">
+                                <i class="ph ph-calendar-check me-2"></i> Agenda do Dia
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item fw-bold"
+                                onclick="App.Controller.abrirNotas()">
+                                <i class="ph ph-note me-2"></i> Notas
                             </button>
                         </li>
                         <li>
@@ -345,6 +362,12 @@
                 </div>
             </div>
 
+            <div id="banner-filtro-foco" class="alert alert-warning border-0 rounded-3 d-flex align-items-center gap-2 py-2 mb-3 d-none">
+                <i class="ph ph-funnel-simple fw-bold"></i>
+                <span class="fw-bold small">Modo Foco ativo — exibindo apenas Q1 e Q2.</span>
+                <button class="btn btn-sm btn-warning ms-auto rounded-pill" onclick="App.Controller.toggleFiltroFoco()">Desativar</button>
+            </div>
+
             <div class="row g-3">
                 <div class="col-12 col-md-6">
                     <div class="card h-100 border-0 shadow-sm rounded-4">
@@ -374,7 +397,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-6" id="col-q3">
                     <div class="card h-100 border-0 shadow-sm rounded-4">
                         <div
                             class="card-header bg-warning text-dark fw-bold border-0 py-3 d-flex justify-content-between">
@@ -388,7 +411,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-6" id="col-q4">
                     <div class="card h-100 border-0 shadow-sm opacity-75 rounded-4">
                         <div
                             class="card-header bg-secondary text-white fw-bold border-0 py-3 d-flex justify-content-between">
@@ -1049,6 +1072,69 @@
                     <div id="fin-calendario"></div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- OFFCANVAS NOTAS -->
+    <div class="offcanvas offcanvas-end rounded-start-4 border-0" tabindex="-1" id="offcanvasNotas"
+        style="z-index: 10050; width: 400px; max-width: 100vw;">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title fw-bold"><i class="ph ph-note me-2 text-warning"></i>Notas</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-3 d-flex flex-column" style="height: calc(100vh - 60px); overflow: hidden;">
+
+            <!-- Painel de lista -->
+            <div id="notas-painel" class="d-flex flex-column h-100">
+                <div class="d-flex gap-2 mb-3">
+                    <input type="text" class="form-control border-0 bg-body-tertiary"
+                        placeholder="🔍 Buscar notas..." oninput="App.Controller.buscarNotas(this.value)">
+                    <button class="btn btn-warning rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center"
+                        style="width:40px;height:40px;" onclick="App.Controller.novaNotaRapida()">
+                        <i class="ph ph-plus text-dark"></i>
+                    </button>
+                </div>
+                <div id="notas-lista" class="overflow-auto flex-grow-1"></div>
+            </div>
+
+            <!-- Painel lista de notas (alternado) -->
+            <div id="notas-painel-lista" class="d-none">
+                <button class="btn btn-sm btn-link text-muted px-0 mb-3" onclick="App.Controller.buscarNotas('')">
+                    <i class="ph ph-arrow-left me-1"></i>Voltar
+                </button>
+                <div id="notas-lista-2" class="overflow-auto" style="max-height: 200px;"></div>
+            </div>
+
+            <!-- Editor de nota -->
+            <div id="notas-editor" class="d-none flex-column h-100">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <button class="btn btn-sm btn-link text-muted px-0" onclick="App.View.fecharNotaEditor(); App.View.renderListaNotas();">
+                        <i class="ph ph-arrow-left me-1"></i>Notas
+                    </button>
+                    <span class="text-muted small ms-auto">Auto-salvo ao clicar em Salvar</span>
+                </div>
+                <input type="text" id="nota-titulo-input" class="form-control form-control-lg border-0 bg-transparent fw-bold px-0 mb-2"
+                    placeholder="Título da nota...">
+                <textarea id="nota-conteudo-input" class="form-control border-0 bg-transparent flex-grow-1 px-0"
+                    placeholder="Escreva aqui..." style="resize: none; min-height: 300px; font-size: 0.95rem; line-height: 1.6;"></textarea>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-warning flex-grow-1 fw-bold" onclick="App.Controller.salvarNota()">
+                        <i class="ph ph-floppy-disk me-2"></i>Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OFFCANVAS AGENDA (TIME BLOCKING) -->
+    <div class="offcanvas offcanvas-end rounded-start-4 border-0" tabindex="-1" id="offcanvasAgenda"
+        style="z-index: 10050; width: 400px; max-width: 100vw;">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title fw-bold"><i class="ph ph-calendar-check me-2 text-warning"></i>Agenda do Dia</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-3 overflow-auto">
+            <div id="agenda-timeline"></div>
         </div>
     </div>
 

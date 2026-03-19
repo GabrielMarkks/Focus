@@ -22,7 +22,9 @@ export const Model = {
             provider: 'gemini',
             ultimoMorning: null,
             bemestar: null,
-            financeiro: null
+            financeiro: null,
+            notas: null,
+            timeBlocking: null
         }
     },
     chatMemory: {
@@ -227,6 +229,58 @@ export const Model = {
             }
         });
         return mapa;
+    },
+
+    // ==========================================================
+    // --- NOTAS ---
+    // ==========================================================
+    getNotas() {
+        if (!this.usuario.config.notas) this.usuario.config.notas = [];
+        return this.usuario.config.notas;
+    },
+
+    addNota(titulo, conteudo) {
+        const id = crypto.randomUUID();
+        this.getNotas().unshift({ id, titulo: titulo || 'Sem título', conteudo, criadaEm: new Date().toISOString() });
+        if (this.usuario.config.notas.length > 100) this.usuario.config.notas.pop();
+        this.salvarPerfilBackground();
+        return id;
+    },
+
+    updateNota(id, titulo, conteudo) {
+        const n = this.getNotas().find(x => x.id === id);
+        if (n) { n.titulo = titulo || 'Sem título'; n.conteudo = conteudo; n.atualizadaEm = new Date().toISOString(); this.salvarPerfilBackground(); }
+    },
+
+    delNota(id) {
+        this.usuario.config.notas = this.getNotas().filter(n => n.id !== id);
+        this.salvarPerfilBackground();
+    },
+
+    // ==========================================================
+    // --- TIME BLOCKING ---
+    // ==========================================================
+    getTimeBlocking() {
+        if (!this.usuario.config.timeBlocking) this.usuario.config.timeBlocking = {};
+        return this.usuario.config.timeBlocking;
+    },
+
+    addBlocoTempo(data, horario, texto, duracao = 60) {
+        const tb = this.getTimeBlocking();
+        if (!tb[data]) tb[data] = [];
+        tb[data] = tb[data].filter(b => b.horario !== horario);
+        tb[data].push({ id: crypto.randomUUID(), horario, texto, duracao });
+        tb[data].sort((a, b) => a.horario.localeCompare(b.horario));
+        this.salvarPerfilBackground();
+    },
+
+    delBlocoTempo(data, id) {
+        const tb = this.getTimeBlocking();
+        if (tb[data]) { tb[data] = tb[data].filter(b => b.id !== id); this.salvarPerfilBackground(); }
+    },
+
+    getBlocosDia(data) {
+        return this.getTimeBlocking()[data] || [];
     },
 
     // ==========================================================

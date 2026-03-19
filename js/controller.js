@@ -1029,6 +1029,143 @@ export const Controller = {
         View.renderCalendarioFinanceiro(this.finMesRef);
     },
 
+    // ==========================================================
+    // --- NOTAS ---
+    // ==========================================================
+    abrirNotas() {
+        const el = document.getElementById('offcanvasNotas');
+        if (!el) return;
+        const canvas = bootstrap.Offcanvas.getInstance(el) || new bootstrap.Offcanvas(el);
+        canvas.show();
+        setTimeout(() => {
+            View.fecharNotaEditor();
+            View.renderListaNotas();
+        }, 100);
+    },
+
+    abrirNotaEditor(id) {
+        View.renderNotaEditor(id || null);
+    },
+
+    novaNotaRapida() {
+        View.renderNotaEditor(null);
+    },
+
+    salvarNota() {
+        const id = document.getElementById('notas-editor')?.dataset.notaId;
+        const titulo = document.getElementById('nota-titulo-input')?.value.trim();
+        const conteudo = document.getElementById('nota-conteudo-input')?.value.trim();
+        if (!conteudo) return View.notify("Escreva algo na nota.", "error");
+
+        if (id) Model.updateNota(id, titulo, conteudo);
+        else Model.addNota(titulo, conteudo);
+
+        View.fecharNotaEditor();
+        View.renderListaNotas();
+        View.notify("Nota salva!", "success");
+    },
+
+    delNota(id) {
+        if (confirm("Excluir esta nota?")) {
+            Model.delNota(id);
+            View.fecharNotaEditor();
+            View.renderListaNotas();
+        }
+    },
+
+    buscarNotas(q) {
+        View.renderListaNotas(q);
+    },
+
+    // ==========================================================
+    // --- TIME BLOCKING ---
+    // ==========================================================
+    agendaDataRef: new Date(),
+
+    abrirAgenda() {
+        const el = document.getElementById('offcanvasAgenda');
+        if (!el) return;
+        this.agendaDataRef = new Date();
+        const canvas = bootstrap.Offcanvas.getInstance(el) || new bootstrap.Offcanvas(el);
+        canvas.show();
+        setTimeout(() => View.renderAgenda(this.agendaDataRef), 100);
+    },
+
+    navegarAgenda(dir) {
+        this.agendaDataRef = new Date(
+            this.agendaDataRef.getFullYear(),
+            this.agendaDataRef.getMonth(),
+            this.agendaDataRef.getDate() + dir
+        );
+        View.renderAgenda(this.agendaDataRef);
+    },
+
+    abrirFormBloco(dataKey, horario) {
+        const form = document.getElementById('form-bloco-agenda');
+        if (!form) return;
+        form.classList.remove('d-none');
+        document.getElementById('bloco-data').value = dataKey;
+        document.getElementById('bloco-horario').value = horario;
+        document.getElementById('bloco-texto').value = '';
+        document.getElementById('form-bloco-titulo').textContent = `Bloco às ${horario}`;
+        const dur60 = document.getElementById('dur-60');
+        if (dur60) dur60.checked = true;
+        setTimeout(() => document.getElementById('bloco-texto')?.focus(), 100);
+        form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    },
+
+    salvarBlocoAgenda() {
+        const data = document.getElementById('bloco-data')?.value;
+        const horario = document.getElementById('bloco-horario')?.value;
+        const texto = document.getElementById('bloco-texto')?.value.trim();
+        const duracao = parseInt(document.querySelector('input[name="bloco-dur"]:checked')?.value || '60');
+
+        if (!texto) return View.notify("Descreva a atividade.", "error");
+        Model.addBlocoTempo(data, horario, texto, duracao);
+
+        const dataRef = Model._parseDateBR(data) || this.agendaDataRef;
+        View.renderAgenda(dataRef);
+        View.notify("Bloco adicionado! 🗓️", "success");
+    },
+
+    delBlocoAgenda(dataKey, id) {
+        Model.delBlocoTempo(dataKey, id);
+        const dataRef = Model._parseDateBR(dataKey) || this.agendaDataRef;
+        View.renderAgenda(dataRef);
+    },
+
+    // ==========================================================
+    // --- FILTRO DE PRIORIDADES ---
+    // ==========================================================
+    filtroFocoAtivo: false,
+
+    toggleFiltroFoco() {
+        this.filtroFocoAtivo = !this.filtroFocoAtivo;
+        const btn = document.getElementById('btn-filtro-foco');
+        const q3 = document.getElementById('col-q3');
+        const q4 = document.getElementById('col-q4');
+        const inbox = document.getElementById('painel-inbox');
+        const banner = document.getElementById('banner-filtro-foco');
+
+        if (this.filtroFocoAtivo) {
+            q3?.classList.add('d-none');
+            q4?.classList.add('d-none');
+            inbox?.classList.add('d-none');
+            banner?.classList.remove('d-none');
+            btn?.classList.replace('btn-outline-secondary', 'btn-warning');
+            btn?.classList.add('text-dark');
+        } else {
+            q3?.classList.remove('d-none');
+            q4?.classList.remove('d-none');
+            // Re-show inbox only if it has items
+            if ((Model.usuario.tarefas || []).some(t => t.isInbox)) inbox?.classList.remove('d-none');
+            banner?.classList.add('d-none');
+            btn?.classList.replace('btn-warning', 'btn-outline-secondary');
+            btn?.classList.remove('text-dark');
+        }
+        View.notify(this.filtroFocoAtivo ? '🎯 Modo Foco — só o essencial!' : 'Modo normal restaurado.', 'primary');
+    },
+
     verDiaFinanceiro(dia, mes, ano) {
         const container = document.getElementById('fin-detalhe-dia');
         if (!container) return;

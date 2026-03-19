@@ -787,6 +787,180 @@ export const View = {
         `;
     },
 
+    // ==========================================================
+    // --- NOTAS ---
+    // ==========================================================
+    renderListaNotas(busca = '') {
+        const container = document.getElementById('notas-lista');
+        if (!container) return;
+        let notas = Model.getNotas();
+        if (busca) {
+            const q = busca.toLowerCase();
+            notas = notas.filter(n => n.titulo.toLowerCase().includes(q) || n.conteudo.toLowerCase().includes(q));
+        }
+
+        if (notas.length === 0) {
+            container.innerHTML = `<div class="text-center text-muted py-5"><i class="ph ph-note fs-1 opacity-25 d-block mb-2"></i>${busca ? 'Nenhuma nota encontrada.' : 'Nenhuma nota ainda.<br>Crie a primeira!'}</div>`;
+            return;
+        }
+
+        container.innerHTML = notas.map(n => {
+            const data = new Date(n.atualizadaEm || n.criadaEm).toLocaleDateString('pt-BR');
+            const preview = n.conteudo.replace(/\n/g, ' ').substring(0, 80);
+            return `
+            <div class="nota-item card border-0 rounded-3 bg-body-secondary mb-2 p-3"
+                onclick="App.Controller.abrirNotaEditor('${n.id}')" style="cursor: pointer;">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h6 class="fw-bold mb-1 text-truncate flex-grow-1 me-2">${this.escapeHTML(n.titulo)}</h6>
+                    <button class="btn btn-sm btn-link text-danger p-0 flex-shrink-0 opacity-25 hover-opacity-100"
+                        onclick="event.stopPropagation(); App.Controller.delNota('${n.id}')">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </div>
+                <p class="text-muted small mb-1 text-truncate">${this.escapeHTML(preview)}${n.conteudo.length > 80 ? '…' : ''}</p>
+                <small class="text-muted opacity-50" style="font-size: 0.7rem;">${data}</small>
+            </div>`;
+        }).join('');
+    },
+
+    renderNotaEditor(id) {
+        const container = document.getElementById('notas-editor');
+        const painel = document.getElementById('notas-painel');
+        const lista = document.getElementById('notas-painel-lista');
+        if (!container || !painel || !lista) return;
+
+        const nota = id ? Model.getNotas().find(n => n.id === id) : null;
+        painel.classList.add('d-none');
+        lista.classList.remove('d-none');
+
+        container.classList.remove('d-none');
+        container.dataset.notaId = id || '';
+        document.getElementById('nota-titulo-input').value = nota ? nota.titulo : '';
+        document.getElementById('nota-conteudo-input').value = nota ? nota.conteudo : '';
+        setTimeout(() => document.getElementById('nota-titulo-input').focus(), 100);
+    },
+
+    fecharNotaEditor() {
+        const container = document.getElementById('notas-editor');
+        const painel = document.getElementById('notas-painel');
+        const lista = document.getElementById('notas-painel-lista');
+        if (!container || !painel || !lista) return;
+        container.classList.add('d-none');
+        lista.classList.add('d-none');
+        painel.classList.remove('d-none');
+    },
+
+    // ==========================================================
+    // --- TIME BLOCKING ---
+    // ==========================================================
+    renderAgenda(dataRef) {
+        const container = document.getElementById('agenda-timeline');
+        if (!container) return;
+
+        const hoje = dataRef || new Date();
+        const dataKey = hoje.toLocaleDateString('pt-BR');
+        const nomeData = hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+        const blocos = Model.getBlocosDia(dataKey);
+        const blocosMap = {};
+        blocos.forEach(b => { blocosMap[b.horario] = b; });
+
+        const slots = [];
+        for (let h = 7; h <= 22; h++) {
+            slots.push(`${String(h).padStart(2, '0')}:00`);
+            if (h < 22) slots.push(`${String(h).padStart(2, '0')}:30`);
+        }
+
+        const tarefasAtuais = (Model.usuario.tarefas || []).filter(t => !t.isInbox);
+        const tarefaOptions = tarefasAtuais.map(t =>
+            `<option value="${this.escapeHTML(t.texto)}">${this.escapeHTML(t.texto.substring(0, 50))}</option>`
+        ).join('');
+
+        const agora = new Date();
+        const horaAtual = `${String(agora.getHours()).padStart(2,'0')}:${agora.getMinutes() < 30 ? '00' : '30'}`;
+        const ehHoje = hoje.toLocaleDateString() === new Date().toLocaleDateString();
+
+        let slotsHtml = slots.map(slot => {
+            const bloco = blocosMap[slot];
+            const isNow = ehHoje && slot === horaAtual;
+
+            if (bloco) {
+                const alturaMin = Math.max(bloco.duracao, 30);
+                const linhas = Math.ceil(alturaMin / 30);
+                return `
+                <div class="agenda-slot ${isNow ? 'agenda-slot-now' : ''}" data-horario="${slot}" data-linhas="${linhas}">
+                    <div class="agenda-hora">${slot}</div>
+                    <div class="agenda-bloco-ocupado rounded-3 p-2 flex-grow-1"
+                        style="border-left: 3px solid var(--bs-primary);">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="fw-medium small text-truncate flex-grow-1 me-1">${this.escapeHTML(bloco.texto)}</div>
+                            <button class="btn btn-sm btn-link text-danger p-0 opacity-50"
+                                onclick="App.Controller.delBlocoAgenda('${dataKey}', '${bloco.id}')">
+                                <i class="ph ph-x"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted opacity-75">${bloco.duracao}min</small>
+                    </div>
+                </div>`;
+            }
+
+            return `
+            <div class="agenda-slot ${isNow ? 'agenda-slot-now' : ''}" data-horario="${slot}">
+                <div class="agenda-hora">${slot}</div>
+                <div class="agenda-slot-vazio flex-grow-1"
+                    onclick="App.Controller.abrirFormBloco('${dataKey}', '${slot}')">
+                    <span class="agenda-slot-add opacity-0">+ Adicionar</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <button class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                    style="width:32px;height:32px;" onclick="App.Controller.navegarAgenda(-1)">
+                    <i class="ph ph-caret-left"></i>
+                </button>
+                <div class="text-center">
+                    <h6 class="fw-bold text-capitalize mb-0">${nomeData}</h6>
+                    ${ehHoje ? '<span class="badge bg-primary rounded-pill px-2 small">Hoje</span>' : ''}
+                </div>
+                <button class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                    style="width:32px;height:32px;" onclick="App.Controller.navegarAgenda(1)">
+                    <i class="ph ph-caret-right"></i>
+                </button>
+            </div>
+            <div class="agenda-container">${slotsHtml}</div>
+            <div id="form-bloco-agenda" class="card border-0 bg-body-tertiary rounded-3 p-3 mt-3 d-none">
+                <h6 class="fw-bold mb-3" id="form-bloco-titulo">Adicionar bloco</h6>
+                <input type="hidden" id="bloco-data" value="">
+                <input type="hidden" id="bloco-horario" value="">
+                <div class="mb-2">
+                    <label class="form-label small fw-bold text-muted text-uppercase">Tarefa / Atividade</label>
+                    <input list="lista-tarefas-agenda" type="text" id="bloco-texto" class="form-control border-0 bg-body"
+                        placeholder="Digite ou selecione uma tarefa..."
+                        onkeypress="if(event.key==='Enter') App.Controller.salvarBlocoAgenda()">
+                    <datalist id="lista-tarefas-agenda">${tarefaOptions}</datalist>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted text-uppercase">Duração</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="bloco-dur" id="dur-30" value="30">
+                        <label class="btn btn-outline-secondary btn-sm" for="dur-30">30min</label>
+                        <input type="radio" class="btn-check" name="bloco-dur" id="dur-60" value="60" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="dur-60">1h</label>
+                        <input type="radio" class="btn-check" name="bloco-dur" id="dur-90" value="90">
+                        <label class="btn btn-outline-secondary btn-sm" for="dur-90">1h30</label>
+                        <input type="radio" class="btn-check" name="bloco-dur" id="dur-120" value="120">
+                        <label class="btn btn-outline-secondary btn-sm" for="dur-120">2h</label>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary flex-grow-1" onclick="App.Controller.salvarBlocoAgenda()">Salvar</button>
+                    <button class="btn btn-outline-secondary" onclick="document.getElementById('form-bloco-agenda').classList.add('d-none')">Cancelar</button>
+                </div>
+            </div>
+        `;
+    },
+
     playReward() {
         const winAudio = new Audio(this.ambience.win);
         winAudio.volume = 0.5;
