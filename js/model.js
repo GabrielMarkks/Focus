@@ -1,6 +1,4 @@
-import {
-    supabase
-} from './supabase.js';
+import { DB } from './db.js';
 
 export const Model = {
     usuario: {
@@ -65,7 +63,6 @@ export const Model = {
         if (!this.usuario.config.bemestar) {
             this.usuario.config.bemestar = this._defaultBemestar();
         }
-        // Daily reset
         const hoje = new Date().toLocaleDateString();
         const bm = this.usuario.config.bemestar;
         if (bm.hidratacao.data !== hoje) {
@@ -312,7 +309,7 @@ export const Model = {
         const ontem = new Date();
         ontem.setDate(ontem.getDate() - 1);
         const ontemStr = ontem.toLocaleDateString('pt-BR');
-        if (h.ultimoCheckin === hoje) return; // já fez hoje
+        if (h.ultimoCheckin === hoje) return;
         h.streak = h.ultimoCheckin === ontemStr ? (h.streak || 0) + 1 : 1;
         h.ultimoCheckin = hoje;
         this.salvarPerfilBackground();
@@ -378,198 +375,113 @@ export const Model = {
     },
 
     // ==========================================================
-    // --- 1. AUTENTICAÇÃO SUPABASE ---
+    // --- 1. AUTENTICAÇÃO LOCAL ---
     // ==========================================================
     async verificarSessao() {
-        const {
-            data
-        } = await supabase.auth.getSession();
-        this.session = data.session;
+        const perfil = DB.get('perfil');
+        this.session = perfil ? { user: { id: 'local' } } : null;
         return this.session;
     },
+
     async cadastrar(email, senha) {
-        const {
-            data,
-            error
-        } = await supabase.auth.signUp({
-            email,
-            password: senha
-        });
-        if (error) throw error;
-        return data;
+        // Cria sessão local — perfil será salvo no onboarding
+        this.session = { user: { id: 'local', email } };
+        return { user: this.session.user };
     },
+
     async entrar(email, senha) {
-        const {
-            data,
-            error
-        } = await supabase.auth.signInWithPassword({
-            email,
-            password: senha
-        });
-        if (error) throw error;
-        return data;
+        const perfil = DB.get('perfil');
+        if (!perfil) throw new Error("Nenhum perfil encontrado neste dispositivo. Crie uma conta primeiro.");
+        this.session = { user: { id: 'local', email } };
+        return { user: this.session.user };
     },
 
     // ==========================================================
-    // --- 2. CARREGAMENTO (NUVEM -> ECRÃ) ---
+    // --- 2. CARREGAMENTO (localStorage -> memória) ---
     // ==========================================================
     async carregar() {
         if (!this.session) return false;
-        const uid = this.session.user.id;
 
         try {
-            // 1. Perfil Principal
-            let {
-                data: perfil
-            } = await supabase.from('perfis').select('*').eq('id', uid).single();
+            const perfil = DB.get('perfil');
             if (!perfil) {
-                // Primeiro acesso na nuvem: Cria perfil em branco
-                await supabase.from('perfis').insert({
-                    id: uid,
-                    config: this.usuario.config
-                });
-                return false; // Retorna false para mostrar o ecrã de Onboarding
+                // Primeiro acesso: retorna false para mostrar onboarding
+                return false;
             }
+
             this.usuario.nome = perfil.nome || "";
             this.usuario.proposito = perfil.proposito || "";
             this.usuario.papeis = perfil.papeis || [];
-            this.usuario.config = perfil.config || this.usuario.config;
+            this.usuario.config = { ...this.usuario.config, ...(perfil.config || {}) };
 
-            // 2. Tarefas e Histórico (Matriz e Inbox)
-            const {
-                data: tarefasDb
-            } = await supabase.from('tarefas').select('*').eq('user_id', uid);
-            this.usuario.tarefas = (tarefasDb || []).filter(t => !t.feita).map(t => ({
-                id: t.id,
-                texto: t.texto,
-                urgente: t.urgente,
-                importante: t.importante,
-                tipo: t.tipo,
-                isInbox: t.is_inbox,
-                feita: t.feita,
-                tempoInvestido: t.tempo_investido,
-                criadaEm: new Date(t.criada_em).getTime()
-            }));
-            this.usuario.historico = (tarefasDb || []).filter(t => t.feita).map(t => ({
-                id: t.id,
-                texto: t.texto,
-                tempoInvestido: t.tempo_investido,
-                concluidaEm: new Date(t.concluida_em).getTime()
-            }));
+            const tarefasAll = DB.get('tarefas') || [];
+            this.usuario.tarefas = tarefasAll.filter(t => !t.feita);
+            this.usuario.historico = tarefasAll.filter(t => t.feita);
 
-            // 3. Hábitos Diários
-            const {
-                data: habitosDb
-            } = await supabase.from('habitos').select('*').eq('user_id', uid);
-            this.usuario.habitos = (habitosDb || []).map(h => ({
-                id: h.id,
-                texto: h.texto,
-                dias: h.dias,
-                streak: h.streak,
-                concluidoHoje: h.concluido_hoje
-            }));
+            this.usuario.habitos = DB.get('habitos') || [];
 
-            // 4. Metas Trimestrais e Subtarefas
-            const {
-                data: metasDb
-            } = await supabase.from('metas').select('*, subtarefas_metas(*)').eq('user_id', uid);
-            this.usuario.metasTrimestrais = (metasDb || []).map(m => ({
-                id: m.id,
-                texto: m.texto,
-                concluida: m.concluida,
-                subtarefas: m.subtarefas_metas.map(s => ({
-                    id: s.id,
-                    texto: s.texto,
-                    feita: s.feita
-                }))
-            }));
+            const metasAll = DB.get('metas') || [];
+            this.usuario.metasTrimestrais = metasAll;
 
-            this.usuario.metaSemanal = this.usuario.config.metaSemanal || {
-                texto: "",
-                subtarefas: []
-            };
+            const chatHistory = DB.get('chat') || [];
+            this.chatMemory.history = chatHistory;
 
-            // 5. Histórico do Chat IA
-            const {
-                data: chatDb
-            } = await supabase.from('chat_history').select('*').eq('user_id', uid).order('criado_em', {
-                ascending: true
-            });
-            this.chatMemory.history = (chatDb || []).map(c => ({
-                role: c.role,
-                content: c.content
-            }));
+            this.usuario.metaSemanal = this.usuario.config.metaSemanal || { texto: "", subtarefas: [] };
 
-            // Entra no Dashboard se o onboarding já foi concluído alguma vez,
-            // mesmo que o nome esteja vazio por algum motivo
             return !!(this.usuario.config.onboardingConcluido || this.usuario.nome);
         } catch (e) {
-            console.error("Erro ao puxar dados do Supabase:", e);
+            console.error("Erro ao carregar dados locais:", e);
             return false;
         }
     },
 
     // ==========================================================
-    // --- 3. SINCRONIZAÇÃO DE PERFIL (BACKGROUND) ---
+    // --- 3. PERSISTÊNCIA (memória -> localStorage) ---
     // ==========================================================
     salvarPerfilBackground() {
-        if (!this.session) return;
         this.usuario.config.metaSemanal = this.usuario.metaSemanal;
-        supabase.from('perfis').update({
+        DB.set('perfil', {
             nome: this.usuario.nome,
             proposito: this.usuario.proposito,
             papeis: this.usuario.papeis,
             config: this.usuario.config
-        }).eq('id', this.session.user.id).then(); // `.then()` faz o sync acontecer em background
+        });
+        DB.set('tarefas', [...this.usuario.tarefas, ...this.usuario.historico]);
+        DB.set('habitos', this.usuario.habitos);
+        DB.set('metas', this.usuario.metasTrimestrais);
     },
+
     salvar() {
         this.salvarPerfilBackground();
     },
+
     atualizarUsuario(chave, valor) {
         this.usuario[chave] = valor;
         this.salvarPerfilBackground();
     },
 
     // ==========================================================
-    // --- 4. GESTÃO DE TAREFAS (OPTIMISTIC UI) ---
+    // --- 4. GESTÃO DE TAREFAS ---
     // ==========================================================
     obterTarefa(id) {
         return this.usuario.tarefas.find(t => t.id === id);
     },
+
     addTarefa(texto, importante, urgente, tipo, isInbox = false) {
         const id = crypto.randomUUID();
         const novaTarefa = {
-            id,
-            texto,
-            importante,
-            urgente,
-            tipo,
-            isInbox,
-            feita: false,
-            tempoInvestido: 0,
-            criadaEm: Date.now()
+            id, texto, importante, urgente, tipo, isInbox,
+            feita: false, tempoInvestido: 0, criadaEm: Date.now()
         };
-
-        // Atualiza a UI imediatamente
         this.usuario.tarefas.push(novaTarefa);
-
-        // Envia para a base de dados
-        if (this.session) {
-            supabase.from('tarefas').insert({
-                id,
-                user_id: this.session.user.id,
-                texto,
-                urgente,
-                importante,
-                tipo,
-                is_inbox: isInbox
-            }).then();
-        }
+        this.salvarPerfilBackground();
     },
+
     delTarefa(id) {
         this.usuario.tarefas = this.usuario.tarefas.filter(t => t.id !== id);
-        if (this.session) supabase.from('tarefas').delete().eq('id', id).then();
+        this.salvarPerfilBackground();
     },
+
     concluirTarefa(id, minutos) {
         const t = this.usuario.tarefas.find(x => x.id === id);
         if (t) {
@@ -578,16 +490,10 @@ export const Model = {
             t.concluidaEm = Date.now();
             this.usuario.historico.push(t);
             this.usuario.tarefas = this.usuario.tarefas.filter(x => x.id !== id);
-
-            if (this.session) {
-                supabase.from('tarefas').update({
-                    feita: true,
-                    tempo_investido: t.tempoInvestido,
-                    concluida_em: new Date().toISOString()
-                }).eq('id', id).then();
-            }
+            this.salvarPerfilBackground();
         }
     },
+
     moverInboxParaMatriz(id, importante, urgente, tipo) {
         const t = this.obterTarefa(id);
         if (t) {
@@ -595,27 +501,16 @@ export const Model = {
             t.urgente = urgente;
             t.tipo = tipo;
             t.isInbox = false;
-            if (this.session) supabase.from('tarefas').update({
-                importante,
-                urgente,
-                tipo,
-                is_inbox: false
-            }).eq('id', id).then();
+            this.salvarPerfilBackground();
         }
     },
-    encerrarDia() {
-        let migradas = 0;
-        this.usuario.tarefas.forEach(t => {
-            if (!t.feita) {
-                t.adiada = (t.adiada || 0) + 1;
-                migradas++;
-            }
-        });
-        this.usuario.habitos.forEach(h => {
-            h.concluidoHoje = false;
-        });
 
-        // Reset diário do bem-estar
+    encerrarDia() {
+        this.usuario.tarefas.forEach(t => {
+            if (!t.feita) t.adiada = (t.adiada || 0) + 1;
+        });
+        this.usuario.habitos.forEach(h => { h.concluidoHoje = false; });
+
         const bm = this.getBemestar();
         const amanha = new Date();
         amanha.setDate(amanha.getDate() + 1);
@@ -625,13 +520,7 @@ export const Model = {
         bm.suplementosData = amanha.toLocaleDateString();
 
         this.salvarPerfilBackground();
-
-        // Reset diário dos hábitos na nuvem
-        if (this.session) supabase.from('habitos').update({
-            concluido_hoje: false
-        }).eq('user_id', this.session.user.id).then();
-
-        return { migradas };
+        return { migradas: this.usuario.tarefas.filter(t => !t.feita).length };
     },
 
     // ==========================================================
@@ -639,20 +528,10 @@ export const Model = {
     // ==========================================================
     addHabito(texto, dias) {
         const id = crypto.randomUUID();
-        this.usuario.habitos.push({
-            id,
-            texto,
-            dias,
-            streak: 0,
-            concluidoHoje: false
-        });
-        if (this.session) supabase.from('habitos').insert({
-            id,
-            user_id: this.session.user.id,
-            texto,
-            dias
-        }).then();
+        this.usuario.habitos.push({ id, texto, dias, streak: 0, concluidoHoje: false });
+        this.salvarPerfilBackground();
     },
+
     toggleHabito(id) {
         const h = this.usuario.habitos.find(x => x.id === id);
         if (h) {
@@ -660,84 +539,59 @@ export const Model = {
             if (h.concluidoHoje) {
                 h.streak++;
                 h.ultimaData = new Date().toLocaleDateString();
-            } else h.streak = Math.max(0, h.streak - 1);
-
-            if (this.session) supabase.from('habitos').update({
-                concluido_hoje: h.concluidoHoje,
-                streak: h.streak,
-                ultima_data: new Date().toISOString()
-            }).eq('id', id).then();
+            } else {
+                h.streak = Math.max(0, h.streak - 1);
+            }
+            this.salvarPerfilBackground();
         }
     },
+
     delHabito(id) {
         this.usuario.habitos = this.usuario.habitos.filter(h => h.id !== id);
-        if (this.session) supabase.from('habitos').delete().eq('id', id).then();
+        this.salvarPerfilBackground();
     },
 
     // ==========================================================
-    // --- 6. METAS TRIMESTRAIS (VISION) ---
+    // --- 6. METAS TRIMESTRAIS ---
     // ==========================================================
     addMetaTrimestral(texto) {
         const id = crypto.randomUUID();
-        this.usuario.metasTrimestrais.push({
-            id,
-            texto,
-            concluida: false,
-            subtarefas: []
-        });
-        if (this.session) supabase.from('metas').insert({
-            id,
-            user_id: this.session.user.id,
-            texto
-        }).then();
+        this.usuario.metasTrimestrais.push({ id, texto, concluida: false, subtarefas: [] });
+        this.salvarPerfilBackground();
     },
+
     delMetaTrimestral(id) {
         this.usuario.metasTrimestrais = this.usuario.metasTrimestrais.filter(m => m.id !== id);
-        if (this.session) supabase.from('metas').delete().eq('id', id).then();
+        this.salvarPerfilBackground();
     },
+
     toggleMetaTrimestral(id) {
         const m = this.usuario.metasTrimestrais.find(x => x.id === id);
-        if (m) {
-            m.concluida = !m.concluida;
-            if (this.session) supabase.from('metas').update({
-                concluida: m.concluida
-            }).eq('id', id).then();
-        }
+        if (m) { m.concluida = !m.concluida; this.salvarPerfilBackground(); }
     },
+
     addSubTarefaMeta(metaId, texto) {
         const m = this.usuario.metasTrimestrais.find(x => x.id === metaId);
         if (m) {
-            const subId = crypto.randomUUID();
             m.subtarefas = m.subtarefas || [];
-            m.subtarefas.push({
-                id: subId,
-                texto,
-                feita: false
-            });
-            if (this.session) supabase.from('subtarefas_metas').insert({
-                id: subId,
-                meta_id: metaId,
-                texto
-            }).then();
+            m.subtarefas.push({ id: crypto.randomUUID(), texto, feita: false });
+            this.salvarPerfilBackground();
         }
     },
+
     toggleSubTarefaMeta(metaId, subId) {
         const m = this.usuario.metasTrimestrais.find(x => x.id === metaId);
         if (m && m.subtarefas) {
             const s = m.subtarefas.find(x => x.id === subId);
-            if (s) {
-                s.feita = !s.feita;
-                if (this.session) supabase.from('subtarefas_metas').update({
-                    feita: s.feita
-                }).eq('id', subId).then();
-            }
+            if (s) { s.feita = !s.feita; this.salvarPerfilBackground(); }
         }
     },
+
     delSubTarefaMeta(metaId, subId) {
         const m = this.usuario.metasTrimestrais.find(x => x.id === metaId);
         if (m && m.subtarefas) {
             m.subtarefas = m.subtarefas.filter(x => x.id !== subId);
-            if (this.session) supabase.from('subtarefas_metas').delete().eq('id', subId).then();
+            this.salvarPerfilBackground();
         }
     },
 
@@ -745,37 +599,31 @@ export const Model = {
     // --- 7. META SEMANAL ---
     // ==========================================================
     addSubTarefaSemanal(texto) {
-        if (typeof this.usuario.metaSemanal !== 'object') this.usuario.metaSemanal = {
-            texto: "",
-            subtarefas: []
-        };
-        this.usuario.metaSemanal.subtarefas.push({
-            id: crypto.randomUUID(),
-            texto,
-            feita: false
-        });
+        if (typeof this.usuario.metaSemanal !== 'object') {
+            this.usuario.metaSemanal = { texto: "", subtarefas: [] };
+        }
+        this.usuario.metaSemanal.subtarefas.push({ id: crypto.randomUUID(), texto, feita: false });
         this.salvarPerfilBackground();
     },
+
     toggleSubTarefaSemanal(id) {
         if (this.usuario.metaSemanal && this.usuario.metaSemanal.subtarefas) {
             const s = this.usuario.metaSemanal.subtarefas.find(x => x.id === id);
-            if (s) {
-                s.feita = !s.feita;
-                this.salvarPerfilBackground();
-            }
+            if (s) { s.feita = !s.feita; this.salvarPerfilBackground(); }
         }
     },
+
     delSubTarefaSemanal(id) {
         if (this.usuario.metaSemanal && this.usuario.metaSemanal.subtarefas) {
             this.usuario.metaSemanal.subtarefas = this.usuario.metaSemanal.subtarefas.filter(x => x.id !== id);
             this.salvarPerfilBackground();
         }
     },
+
     atualizarTextoMetaSemanal(texto) {
-        if (typeof this.usuario.metaSemanal !== 'object') this.usuario.metaSemanal = {
-            texto: "",
-            subtarefas: []
-        };
+        if (typeof this.usuario.metaSemanal !== 'object') {
+            this.usuario.metaSemanal = { texto: "", subtarefas: [] };
+        }
         this.usuario.metaSemanal.texto = texto;
         this.salvarPerfilBackground();
     },
@@ -786,30 +634,22 @@ export const Model = {
     getXP() {
         return this.usuario.historico.reduce((acc, t) => acc + (t.tempoInvestido || 0), 0);
     },
+
     getNivel() {
         const xp = this.getXP();
-        if (xp < 100) return {
-            t: "Iniciante",
-            i: "🌱"
-        };
-        if (xp < 500) return {
-            t: "Focado",
-            i: "🔥"
-        };
-        if (xp < 1500) return {
-            t: "Produtivo",
-            i: "⚡"
-        };
-        return {
-            t: "Lenda",
-            i: "👑"
-        };
+        if (xp < 100) return { t: "Iniciante", i: "🌱" };
+        if (xp < 500) return { t: "Focado", i: "🔥" };
+        if (xp < 1500) return { t: "Produtivo", i: "⚡" };
+        return { t: "Lenda", i: "👑" };
     },
+
     getMinHoje() {
         const h = new Date().toLocaleDateString();
-        return this.usuario.historico.filter(t => new Date(t.concluidaEm).toLocaleDateString() === h)
+        return this.usuario.historico
+            .filter(t => new Date(t.concluidaEm).toLocaleDateString() === h)
             .reduce((acc, t) => acc + (t.tempoInvestido || 0), 0);
     },
+
     getDadosGraf() {
         const msSemana = 7 * 24 * 60 * 60 * 1000;
         const agora = Date.now();
@@ -826,17 +666,10 @@ export const Model = {
     },
 
     // ==========================================================
-    // --- 9. CHAT DA IA (PERSISTÊNCIA) ---
+    // --- 9. CHAT DA IA ---
     // ==========================================================
     pushChatMessage(role, content) {
-        this.chatMemory.history.push({
-            role,
-            content
-        });
-        if (this.session) supabase.from('chat_history').insert({
-            user_id: this.session.user.id,
-            role,
-            content
-        }).then();
+        this.chatMemory.history.push({ role, content });
+        DB.set('chat', this.chatMemory.history);
     }
 };
