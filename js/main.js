@@ -1,3 +1,4 @@
+import { initDB } from './db.js';
 import { Model } from './model.js';
 import { View } from './view.js';
 import { Controller } from './controller.js';
@@ -25,7 +26,8 @@ const App = {
 
 window.App = App;
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await initDB();
     Controller.init();
 
     if ('serviceWorker' in navigator) {
