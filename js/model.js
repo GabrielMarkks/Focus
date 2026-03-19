@@ -24,7 +24,9 @@ export const Model = {
             bemestar: null,
             financeiro: null,
             notas: null,
-            timeBlocking: null
+            timeBlocking: null,
+            viagens: null,
+            notificacoes: null
         }
     },
     chatMemory: {
@@ -281,6 +283,97 @@ export const Model = {
 
     getBlocosDia(data) {
         return this.getTimeBlocking()[data] || [];
+    },
+
+    // ==========================================================
+    // --- HOBBIES ---
+    // ==========================================================
+    _defaultHobbies() {
+        return [];
+    },
+
+    getHobbies() {
+        const bm = this.getBemestar();
+        if (!bm.hobbies) bm.hobbies = this._defaultHobbies();
+        return bm.hobbies;
+    },
+
+    addHobby(nome, categoria) {
+        const hobbies = this.getHobbies();
+        hobbies.push({ id: crypto.randomUUID(), nome, categoria, streak: 0, ultimoCheckin: null });
+        this.salvarPerfilBackground();
+    },
+
+    checkinHobby(id) {
+        const hoje = new Date().toLocaleDateString('pt-BR');
+        const h = this.getHobbies().find(x => x.id === id);
+        if (!h) return;
+        const ontem = new Date();
+        ontem.setDate(ontem.getDate() - 1);
+        const ontemStr = ontem.toLocaleDateString('pt-BR');
+        if (h.ultimoCheckin === hoje) return; // já fez hoje
+        h.streak = h.ultimoCheckin === ontemStr ? (h.streak || 0) + 1 : 1;
+        h.ultimoCheckin = hoje;
+        this.salvarPerfilBackground();
+    },
+
+    delHobby(id) {
+        const bm = this.getBemestar();
+        bm.hobbies = this.getHobbies().filter(h => h.id !== id);
+        this.salvarPerfilBackground();
+    },
+
+    // ==========================================================
+    // --- VIAGENS ---
+    // ==========================================================
+    _defaultViagens() {
+        return [];
+    },
+
+    getViagens() {
+        if (!this.usuario.config.viagens) this.usuario.config.viagens = this._defaultViagens();
+        return this.usuario.config.viagens;
+    },
+
+    addViagem(dados) {
+        const v = { id: crypto.randomUUID(), checklist: [], ...dados };
+        this.getViagens().unshift(v);
+        this.salvarPerfilBackground();
+        return v.id;
+    },
+
+    updateViagem(id, dados) {
+        const v = this.getViagens().find(x => x.id === id);
+        if (!v) return;
+        Object.assign(v, dados);
+        this.salvarPerfilBackground();
+    },
+
+    delViagem(id) {
+        this.usuario.config.viagens = this.getViagens().filter(v => v.id !== id);
+        this.salvarPerfilBackground();
+    },
+
+    addItemChecklist(viagemId, texto) {
+        const v = this.getViagens().find(x => x.id === viagemId);
+        if (!v) return;
+        if (!v.checklist) v.checklist = [];
+        v.checklist.push({ id: crypto.randomUUID(), texto, feito: false });
+        this.salvarPerfilBackground();
+    },
+
+    toggleItemChecklist(viagemId, itemId) {
+        const v = this.getViagens().find(x => x.id === viagemId);
+        if (!v) return;
+        const item = v.checklist.find(i => i.id === itemId);
+        if (item) { item.feito = !item.feito; this.salvarPerfilBackground(); }
+    },
+
+    delItemChecklist(viagemId, itemId) {
+        const v = this.getViagens().find(x => x.id === viagemId);
+        if (!v) return;
+        v.checklist = v.checklist.filter(i => i.id !== itemId);
+        this.salvarPerfilBackground();
     },
 
     // ==========================================================

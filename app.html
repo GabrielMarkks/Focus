@@ -55,6 +55,10 @@
                     <i class="ph ph-wallet fs-5"></i>
                 </button>
 
+                <button class="btn btn-icon text-body" onclick="App.Controller.abrirViagens()" title="Viagens">
+                    <i class="ph ph-airplane fs-5"></i>
+                </button>
+
                 <button class="btn btn-icon text-body" onclick="App.Controller.abrirRelatorio()" title="Analytics">
                     <i class="ph ph-chart-pie-slice fs-5"></i>
                 </button>
@@ -84,6 +88,12 @@
                             <button class="dropdown-item fw-bold"
                                 onclick="App.Controller.abrirNotas()">
                                 <i class="ph ph-note me-2"></i> Notas
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item fw-bold text-info"
+                                onclick="App.Controller.abrirViagens()">
+                                <i class="ph ph-airplane me-2"></i> Viagens
                             </button>
                         </li>
                         <li>
@@ -826,6 +836,56 @@
                     <hr>
 
                     <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">TEMA DE COR</label>
+                        <div class="tema-picker" id="tema-picker">
+                            <div class="tema-swatch" data-tema="default" title="Padrão (Azul)"
+                                style="background:#0d6efd" onclick="App.Controller.mudarTema('default')"></div>
+                            <div class="tema-swatch" data-tema="ameixa" title="Ameixa (Roxo)"
+                                style="background:#7c3aed" onclick="App.Controller.mudarTema('ameixa')"></div>
+                            <div class="tema-swatch" data-tema="floresta" title="Floresta (Verde)"
+                                style="background:#16a34a" onclick="App.Controller.mudarTema('floresta')"></div>
+                            <div class="tema-swatch" data-tema="papel" title="Papel (Sépia)"
+                                style="background:#b5651d" onclick="App.Controller.mudarTema('papel')"></div>
+                            <div class="tema-swatch" data-tema="midnight" title="Midnight (Azul Escuro)"
+                                style="background:#1e293b; border: 2px solid #334155" onclick="App.Controller.mudarTema('midnight')"></div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">NOTIFICAÇÕES</label>
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small">Lembrete de Hábitos</span>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="time" id="notif-habitos-hora" class="form-control form-control-sm" style="width:100px" value="08:00" onchange="App.Controller.salvarNotificacoes()">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="notif-habitos-ativo" onchange="App.Controller.salvarNotificacoes()">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="small">Resumo Diário</span>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="time" id="notif-resumo-hora" class="form-control form-control-sm" style="width:100px" value="20:00" onchange="App.Controller.salvarNotificacoes()">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="notif-resumo-ativo" onchange="App.Controller.salvarNotificacoes()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-2">
+                        <button class="btn btn-outline-primary btn-sm w-100" onclick="App.Controller.abrirWizardIA()">
+                            <i class="ph ph-magic-wand me-1"></i> Setup Inteligente com IA
+                        </button>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
                         <label class="form-label small fw-bold text-muted">INTELIGÊNCIA ARTIFICIAL</label>
 
                         <div class="input-group mb-2">
@@ -1003,6 +1063,12 @@
                         🚭 Vícios
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold small px-3" id="tab-hobbies-btn"
+                        data-bs-toggle="tab" data-bs-target="#tab-hobbies" type="button">
+                        🎮 Hobbies
+                    </button>
+                </li>
             </ul>
             <div class="tab-content p-3 overflow-auto" style="height: calc(100vh - 120px);">
                 <div class="tab-pane fade show active" id="tab-hidratacao" role="tabpanel">
@@ -1016,6 +1082,9 @@
                 </div>
                 <div class="tab-pane fade" id="tab-vicios" role="tabpanel">
                     <div id="bemestar-vicios"></div>
+                </div>
+                <div class="tab-pane fade" id="tab-hobbies" role="tabpanel">
+                    <div id="bemestar-hobbies"></div>
                 </div>
             </div>
         </div>
@@ -1135,6 +1204,141 @@
         </div>
         <div class="offcanvas-body p-3 overflow-auto">
             <div id="agenda-timeline"></div>
+        </div>
+    </div>
+
+    <!-- MODAL AI SETUP WIZARD -->
+    <div class="modal fade" id="modalWizardIA" tabindex="-1" data-bs-backdrop="static" style="z-index: 10060;">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header bg-primary text-white rounded-top-4">
+                    <h5 class="modal-title fw-bold"><i class="ph ph-magic-wand me-2"></i>Setup Inteligente com IA</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-4">Responda 4 perguntas rápidas e a IA vai montar sua rotina personalizada.</p>
+                    <div id="wizard-form">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">1. Qual é o seu principal objetivo de vida agora?</label>
+                            <input type="text" id="wizard-objetivo" class="form-control" placeholder="Ex: Construir um negócio online, melhorar saúde...">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">2. Qual é sua maior dificuldade no dia a dia?</label>
+                            <input type="text" id="wizard-dificuldade" class="form-control" placeholder="Ex: Procrastinação, falta de foco, excesso de tarefas...">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">3. Quantas horas por dia você tem para focar?</label>
+                            <select id="wizard-horas" class="form-select">
+                                <option value="1-2">1 a 2 horas</option>
+                                <option value="3-4" selected>3 a 4 horas</option>
+                                <option value="5-6">5 a 6 horas</option>
+                                <option value="6+">Mais de 6 horas</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">4. Qual área você quer priorizar?</label>
+                            <select id="wizard-area" class="form-select">
+                                <option value="Carreira/Negócios">Carreira / Negócios</option>
+                                <option value="Saúde/Fitness">Saúde / Fitness</option>
+                                <option value="Estudos/Aprendizado">Estudos / Aprendizado</option>
+                                <option value="Relacionamentos">Relacionamentos</option>
+                                <option value="Finanças">Finanças</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="wizard-resultado" class="d-none">
+                        <div id="wizard-resultado-corpo"></div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" id="btn-wizard-gerar" class="btn btn-primary"
+                        onclick="App.Controller.executarWizardIA()">
+                        <i class="ph ph-sparkle me-1"></i> Gerar Minha Rotina
+                    </button>
+                    <button type="button" id="btn-wizard-aplicar" class="btn btn-success d-none"
+                        onclick="App.Controller.aplicarRotinaIA()">
+                        <i class="ph ph-check me-1"></i> Aplicar Rotina
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OFFCANVAS VIAGENS -->
+    <div class="offcanvas offcanvas-end rounded-start-4 border-0" tabindex="-1" id="offcanvasViagens"
+        style="z-index: 10050; width: 440px; max-width: 100vw;">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title fw-bold">
+                <i class="ph ph-airplane me-2 text-info"></i>Viagens
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+            <ul class="nav nav-tabs px-3 pt-2 border-bottom" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-bold small px-3" data-bs-toggle="tab" data-bs-target="#tab-viagens-lista" type="button">✈️ Minhas Viagens</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold small px-3" data-bs-toggle="tab" data-bs-target="#tab-viagem-detalhe" type="button" id="tab-viagem-detalhe-btn">📋 Detalhes</button>
+                </li>
+            </ul>
+            <div class="tab-content p-3 overflow-auto" style="height: calc(100vh - 120px);">
+                <div class="tab-pane fade show active" id="tab-viagens-lista" role="tabpanel">
+                    <button class="btn btn-primary btn-sm w-100 mb-3" onclick="App.Controller.abrirFormViagem()">
+                        <i class="ph ph-plus me-1"></i> Nova Viagem
+                    </button>
+                    <div id="viagens-lista"></div>
+                </div>
+                <div class="tab-pane fade" id="tab-viagem-detalhe" role="tabpanel">
+                    <div id="viagem-detalhe-corpo"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL FORM VIAGEM -->
+    <div class="modal fade" id="modalFormViagem" tabindex="-1" style="z-index: 10060;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="titulo-form-viagem">Nova Viagem</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <input type="hidden" id="viagem-edit-id">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Nome da Viagem</label>
+                        <input type="text" id="viagem-nome" class="form-control" placeholder="Ex: Férias em Portugal">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Destino</label>
+                        <input type="text" id="viagem-destino" class="form-control" placeholder="Ex: Lisboa, Portugal">
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col">
+                            <label class="form-label small fw-bold">Data de Ida</label>
+                            <input type="date" id="viagem-data-ida" class="form-control">
+                        </div>
+                        <div class="col">
+                            <label class="form-label small fw-bold">Data de Volta</label>
+                            <input type="date" id="viagem-data-volta" class="form-control">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Orçamento (R$)</label>
+                        <input type="number" id="viagem-orcamento" class="form-control" placeholder="0,00" min="0" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Gasto até agora (R$)</label>
+                        <input type="number" id="viagem-gasto" class="form-control" placeholder="0,00" min="0" step="0.01">
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="App.Controller.salvarViagem()">Salvar</button>
+                </div>
+            </div>
         </div>
     </div>
 

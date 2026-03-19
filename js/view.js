@@ -117,7 +117,19 @@ export const View = {
 
     applyTheme(tema) {
         const t = tema || Model.usuario.config.tema || 'light';
-        document.documentElement.setAttribute('data-bs-theme', t);
+        // light/dark go to data-bs-theme; color themes go to data-tema
+        const COLOR_TEMAS = ['ameixa', 'floresta', 'papel', 'midnight'];
+        if (COLOR_TEMAS.includes(t)) {
+            document.documentElement.setAttribute('data-bs-theme', t === 'midnight' ? 'dark' : t === 'papel' ? 'light' : 'light');
+            document.documentElement.setAttribute('data-tema', t);
+        } else {
+            document.documentElement.setAttribute('data-bs-theme', t);
+            document.documentElement.removeAttribute('data-tema');
+        }
+        // Update swatch active state
+        document.querySelectorAll('.tema-swatch').forEach(sw => {
+            sw.classList.toggle('ativo', sw.dataset.tema === t);
+        });
     },
 
     alternarHistorico() {
@@ -291,6 +303,7 @@ export const View = {
         this.renderSono();
         this.renderTreino();
         this.renderVicios();
+        this.renderHobbies(Model.getHobbies());
     },
 
     renderHidratacao() {
@@ -1336,5 +1349,142 @@ export const View = {
         `;
 
         container.innerHTML = html;
+    },
+
+    // ==========================================================
+    // --- HOBBIES ---
+    // ==========================================================
+    renderHobbies(hobbies) {
+        const el = document.getElementById('bemestar-hobbies');
+        if (!el) return;
+        const CATEGORIAS = ['🎮 Games', '🎵 Música', '📚 Leitura', '🏃 Esporte', '🎨 Arte', '🌿 Natureza', '✈️ Viagens', '🍳 Culinária', '💻 Tech', '🎯 Outro'];
+
+        let html = `
+            <div class="mb-3">
+                <p class="text-muted small">Registre seus hobbies e mantenha a sequência de check-ins.</p>
+                <button class="btn btn-primary btn-sm w-100 mb-3" onclick="App.Controller.abrirFormHobby()">
+                    <i class="ph ph-plus me-1"></i> Novo Hobby
+                </button>
+            </div>
+        `;
+
+        if (!hobbies.length) {
+            html += `<div class="text-center text-muted py-4"><i class="ph ph-game-controller fs-1 d-block mb-2"></i>Nenhum hobby cadastrado.</div>`;
+        } else {
+            hobbies.forEach(h => {
+                const hoje = new Date().toLocaleDateString('pt-BR');
+                const fezHoje = h.ultimoCheckin === hoje;
+                const streakLabel = h.streak >= 30 ? '👑' : h.streak >= 14 ? '🔥' : h.streak >= 7 ? '⚡' : '🌱';
+                html += `
+                    <div class="card border-0 shadow-sm rounded-3 mb-2 hobby-card">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <div class="fw-bold">${this.escapeHTML(h.nome)}</div>
+                                    <div class="small text-muted">${this.escapeHTML(h.categoria)}</div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    ${h.streak > 0 ? `<span class="streak-hobby">${streakLabel} ${h.streak}d</span>` : ''}
+                                    <button class="btn btn-sm ${fezHoje ? 'btn-success' : 'btn-outline-primary'} rounded-pill"
+                                        onclick="App.Controller.checkinHobby('${h.id}')" ${fezHoje ? 'disabled' : ''}>
+                                        ${fezHoje ? '<i class="ph ph-check"></i>' : 'Check-in'}
+                                    </button>
+                                    <button class="btn btn-sm btn-link text-danger p-0" onclick="App.Controller.delHobby('${h.id}')">
+                                        <i class="ph ph-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        el.innerHTML = html;
+    },
+
+    // ==========================================================
+    // --- VIAGENS ---
+    // ==========================================================
+    renderListaViagens(viagens) {
+        const el = document.getElementById('viagens-lista');
+        if (!el) return;
+        if (!viagens.length) {
+            el.innerHTML = `<div class="text-center text-muted py-4"><i class="ph ph-airplane fs-1 d-block mb-2"></i>Nenhuma viagem planejada.</div>`;
+            return;
+        }
+        el.innerHTML = viagens.map(v => {
+            const orcamento = parseFloat(v.orcamento) || 0;
+            const gasto = parseFloat(v.gasto) || 0;
+            const pct = orcamento > 0 ? Math.min(100, Math.round((gasto / orcamento) * 100)) : 0;
+            const cor = pct >= 90 ? 'danger' : pct >= 70 ? 'warning' : 'success';
+            return `
+                <div class="card border-0 shadow-sm rounded-3 mb-3 viagem-card">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div>
+                                <div class="fw-bold">${this.escapeHTML(v.nome)}</div>
+                                <div class="small text-muted"><i class="ph ph-map-pin me-1"></i>${this.escapeHTML(v.destino)}</div>
+                            </div>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-primary" onclick="App.Controller.abrirDetalheViagem('${v.id}')">
+                                    <i class="ph ph-list-checks"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="App.Controller.abrirFormViagem('${v.id}')">
+                                    <i class="ph ph-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="App.Controller.delViagem('${v.id}')">
+                                    <i class="ph ph-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        ${v.dataIda ? `<div class="small text-muted mb-2"><i class="ph ph-calendar me-1"></i>${this.escapeHTML(v.dataIda)} → ${this.escapeHTML(v.dataVolta || '?')}</div>` : ''}
+                        ${orcamento > 0 ? `
+                        <div class="mb-1">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Orçamento</span>
+                                <span class="text-${cor}">R$ ${gasto.toFixed(2)} / R$ ${orcamento.toFixed(2)}</span>
+                            </div>
+                            <div class="progress viagem-progress-bar">
+                                <div class="progress-bar bg-${cor}" style="width:${pct}%"></div>
+                            </div>
+                        </div>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    renderDetalheViagem(v) {
+        const el = document.getElementById('viagem-detalhe-corpo');
+        if (!el || !v) return;
+        const checklist = v.checklist || [];
+        const feitos = checklist.filter(i => i.feito).length;
+        el.innerHTML = `
+            <h6 class="fw-bold mb-1">${this.escapeHTML(v.nome)}</h6>
+            <p class="small text-muted mb-3"><i class="ph ph-map-pin me-1"></i>${this.escapeHTML(v.destino)}</p>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold small">Checklist de Mala</span>
+                <span class="badge bg-primary-subtle text-primary">${feitos}/${checklist.length}</span>
+            </div>
+            <div id="checklist-viagem-${v.id}" class="mb-3">
+                ${checklist.map(item => `
+                    <div class="checklist-item">
+                        <input type="checkbox" class="form-check-input" ${item.feito ? 'checked' : ''}
+                            onchange="App.Controller.toggleItemChecklist('${v.id}','${item.id}')">
+                        <span class="small flex-grow-1 ${item.feito ? 'text-decoration-line-through text-muted' : ''}">${this.escapeHTML(item.texto)}</span>
+                        <button class="btn btn-sm btn-link text-danger p-0" onclick="App.Controller.delItemChecklist('${v.id}','${item.id}')">
+                            <i class="ph ph-x"></i>
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="input-group input-group-sm">
+                <input type="text" id="novo-item-checklist" class="form-control" placeholder="Novo item..."
+                    onkeypress="if(event.key==='Enter') App.Controller.addItemChecklist('${v.id}')">
+                <button class="btn btn-primary" onclick="App.Controller.addItemChecklist('${v.id}')">
+                    <i class="ph ph-plus"></i>
+                </button>
+            </div>
+        `;
     }
 };

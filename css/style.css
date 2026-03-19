@@ -604,3 +604,117 @@ body {
 #btn-filtro-foco {
     transition: all 0.2s;
 }
+
+/* ============================================================
+   FASE 4 — TEMAS PERSONALIZADOS
+   ============================================================ */
+
+/* Ameixa (Purple) */
+[data-tema="ameixa"] {
+    --bs-primary: #7c3aed;
+    --bs-primary-rgb: 124, 58, 237;
+    --bs-link-color: #7c3aed;
+    --bs-link-hover-color: #6d28d9;
+    --focus-accent: #7c3aed;
+}
+[data-tema="ameixa"] .btn-primary { background-color: #7c3aed; border-color: #7c3aed; }
+[data-tema="ameixa"] .btn-primary:hover { background-color: #6d28d9; border-color: #6d28d9; }
+[data-tema="ameixa"] .bg-primary { background-color: #7c3aed !important; }
+[data-tema="ameixa"] .text-primary { color: #7c3aed !important; }
+[data-tema="ameixa"] .border-primary { border-color: #7c3aed !important; }
+[data-tema="ameixa"] .nav-pills .nav-link.active { background-color: #7c3aed; }
+[data-tema="ameixa"] .progress-bar { background-color: #7c3aed; }
+
+/* Floresta (Green) */
+[data-tema="floresta"] {
+    --bs-primary: #16a34a;
+    --bs-primary-rgb: 22, 163, 74;
+    --bs-link-color: #16a34a;
+    --bs-link-hover-color: #15803d;
+    --focus-accent: #16a34a;
+}
+[data-tema="floresta"] .btn-primary { background-color: #16a34a; border-color: #16a34a; }
+[data-tema="floresta"] .btn-primary:hover { background-color: #15803d; border-color: #15803d; }
+[data-tema="floresta"] .bg-primary { background-color: #16a34a !important; }
+[data-tema="floresta"] .text-primary { color: #16a34a !important; }
+[data-tema="floresta"] .border-primary { border-color: #16a34a !important; }
+[data-tema="floresta"] .nav-pills .nav-link.active { background-color: #16a34a; }
+[data-tema="floresta"] .progress-bar { background-color: #16a34a; }
+
+/* Papel (Sepia) */
+[data-tema="papel"] {
+    --bs-body-bg: #fdf6e3;
+    --bs-body-color: #433422;
+    --bs-primary: #b5651d;
+    --bs-primary-rgb: 181, 101, 29;
+    --bs-link-color: #b5651d;
+    --focus-accent: #b5651d;
+}
+[data-tema="papel"] { background-color: #fdf6e3; color: #433422; }
+[data-tema="papel"] .card { background-color: #fef9ef; border-color: #e8d9be; }
+[data-tema="papel"] .btn-primary { background-color: #b5651d; border-color: #b5651d; }
+[data-tema="papel"] .btn-primary:hover { background-color: #9a5216; border-color: #9a5216; }
+[data-tema="papel"] .bg-primary { background-color: #b5651d !important; }
+[data-tema="papel"] .text-primary { color: #b5651d !important; }
+[data-tema="papel"] .nav-pills .nav-link.active { background-color: #b5651d; }
+[data-tema="papel"] .progress-bar { background-color: #b5651d; }
+[data-tema="papel"] .offcanvas, [data-tema="papel"] .modal-content { background-color: #fdf6e3; }
+
+/* Midnight (Dark Blue) */
+[data-tema="midnight"] {
+    --bs-body-bg: #0f172a;
+    --bs-body-color: #e2e8f0;
+    --bs-primary: #3b82f6;
+    --bs-primary-rgb: 59, 130, 246;
+    --bs-link-color: #3b82f6;
+    --focus-accent: #3b82f6;
+}
+[data-tema="midnight"] { background-color: #0f172a; color: #e2e8f0; }
+[data-tema="midnight"] .card { background-color: #1e293b; border-color: #334155; color: #e2e8f0; }
+[data-tema="midnight"] .btn-primary { background-color: #3b82f6; border-color: #3b82f6; }
+[data-tema="midnight"] .btn-primary:hover { background-color: #2563eb; border-color: #2563eb; }
+[data-tema="midnight"] .bg-primary { background-color: #3b82f6 !important; }
+[data-tema="midnight"] .text-primary { color: #3b82f6 !important; }
+[data-tema="midnight"] .nav-pills .nav-link.active { background-color: #3b82f6; }
+[data-tema="midnight"] .progress-bar { background-color: #3b82f6; }
+[data-tema="midnight"] .offcanvas, [data-tema="midnight"] .modal-content { background-color: #1e293b; color: #e2e8f0; }
+[data-tema="midnight"] .form-control, [data-tema="midnight"] .form-select { background-color: #0f172a; color: #e2e8f0; border-color: #334155; }
+[data-tema="midnight"] .list-group-item { background-color: #1e293b; color: #e2e8f0; border-color: #334155; }
+[data-tema="midnight"] .offcanvas-header, [data-tema="midnight"] .modal-header { border-bottom-color: #334155; }
+
+/* Tema Picker */
+.tema-picker { display: flex; gap: 10px; flex-wrap: wrap; }
+.tema-swatch {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+}
+.tema-swatch:hover { transform: scale(1.15); }
+.tema-swatch.ativo { border-color: #000; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000; }
+[data-bs-theme="dark"] .tema-swatch.ativo { border-color: #fff; box-shadow: 0 0 0 2px #000, 0 0 0 4px #fff; }
+
+/* ============================================================
+   FASE 4 — HOBBIES & VIAGENS
+   ============================================================ */
+.hobby-card { transition: transform 0.15s, box-shadow 0.15s; }
+.hobby-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; }
+.streak-hobby { font-size: 0.7rem; background: linear-gradient(135deg, #f59e0b, #f97316); color: #fff; border-radius: 12px; padding: 2px 8px; }
+
+.viagem-card { transition: transform 0.15s, box-shadow 0.15s; }
+.viagem-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.1) !important; }
+.viagem-progress-bar { height: 6px; border-radius: 3px; }
+.checklist-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--bs-border-color); }
+.checklist-item:last-child { border-bottom: none; }
+
+/* Notificações badge */
+#btn-notif-badge {
+    position: absolute;
+    top: -2px; right: -2px;
+    width: 8px; height: 8px;
+    background: #ef4444;
+    border-radius: 50%;
+    display: none;
+}
+#btn-notif-badge.ativo { display: block; }
