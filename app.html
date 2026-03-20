@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br" data-bs-theme="light">
+<html lang="pt-br" data-bs-theme="dark">
 
 <head>
     <meta charset="UTF-8">
@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="css/style.css">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0d6efd">
+    <meta name="theme-color" content="#f59e0b">
     <link rel="apple-touch-icon" href="assets/icon-192.png">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 </head>
@@ -19,101 +19,57 @@
 
     <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container" style="z-index: 11000;"></div>
 
-    <nav id="nav-principal" class="navbar navbar-expand-lg navbar-glass sticky-top d-none">
-        <div class="container">
-            <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="#">
-                <i class="ph ph-brain text-primary fs-4"></i> <span class="d-none d-sm-inline">Focus Coach</span>
+    <nav id="nav-principal" class="fc-navbar sticky-top d-none">
+        <div class="fc-navbar-inner">
+            <a class="fc-brand" href="#">
+                <span class="fc-brand-icon">⚡</span>
+                <span class="fc-brand-name">Focus</span>
+                <span class="fc-brand-tagline d-none d-md-inline">Coach Pro</span>
             </a>
 
-            <div class="d-flex gap-2 align-items-center">
-                <span class="badge bg-body-secondary text-body border d-none d-md-inline"
-                    id="badge-nivel">Iniciante</span>
+            <div class="fc-tabs" id="fc-tabs">
+                <button class="fc-tab ativo" data-secao="hoje" onclick="App.Controller.navegar('hoje')">Hoje</button>
+                <button class="fc-tab" data-secao="habitos" onclick="App.Controller.navegar('habitos')">Hábitos</button>
+                <button class="fc-tab" data-secao="bemestar" onclick="App.Controller.navegar('bemestar')">Bem-estar</button>
+                <button class="fc-tab" data-secao="financeiro" onclick="App.Controller.navegar('financeiro')">Financeiro</button>
+                <button class="fc-tab" data-secao="metas" onclick="App.Controller.navegar('metas')">Metas</button>
+                <button class="fc-tab" data-secao="conquistas" onclick="App.Controller.navegar('conquistas')">Conquistas</button>
+                <button class="fc-tab" data-secao="dashboard" onclick="App.Controller.navegar('dashboard')">Dashboard</button>
+                <button class="fc-tab" data-secao="calendario" onclick="App.Controller.navegar('calendario')">Calendário</button>
+            </div>
 
-                <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm"
-                    onclick="App.Controller.abrirBrainDump()">
-                    <i class="ph ph-lightning me-1"></i> <span class="d-none d-sm-inline">Capturar</span>
+            <div class="fc-navbar-actions">
+                <span class="fc-nivel-badge d-none d-lg-inline" id="badge-nivel">🌱 Iniciante</span>
+                <button class="fc-btn-capture" onclick="App.Controller.abrirBrainDump()">
+                    <i class="ph ph-lightning"></i> <span class="d-none d-sm-inline">Capturar</span>
                 </button>
-
-                <button id="btn-install-app" class="btn btn-outline-light rounded-pill d-none me-2"
-                    onclick="App.installPWA()">
-                    <i class="ph ph-download-simple me-1"></i> Instalar App
-                </button>
-
-                <div class="vr mx-2 d-none d-md-block"></div>
-
-                <button class="btn btn-icon text-body" data-bs-toggle="offcanvas" data-bs-target="#offcanvasHabitos"
-                    title="Rituais">
-                    <i class="ph ph-list-checks fs-5"></i>
-                </button>
-
-                <button class="btn btn-icon text-body" onclick="App.Controller.abrirBemEstar()" title="Bem-Estar">
-                    <i class="ph ph-heartbeat fs-5"></i>
-                </button>
-
-                <button class="btn btn-icon text-body" onclick="App.Controller.abrirFinanceiro()" title="Finanças">
-                    <i class="ph ph-wallet fs-5"></i>
-                </button>
-
-                <button class="btn btn-icon text-body" onclick="App.Controller.abrirViagens()" title="Viagens">
-                    <i class="ph ph-airplane fs-5"></i>
-                </button>
-
-                <button class="btn btn-icon text-body" onclick="App.Controller.abrirRelatorio()" title="Analytics">
-                    <i class="ph ph-chart-pie-slice fs-5"></i>
-                </button>
-
-                <button id="btn-filtro-foco" class="btn btn-outline-secondary btn-sm rounded-pill px-2"
-                    onclick="App.Controller.toggleFiltroFoco()" title="Filtro de Prioridades">
+                <button id="btn-filtro-foco" class="fc-btn-nav-icon" onclick="App.Controller.toggleFiltroFoco()" title="Filtro Foco">
                     <i class="ph ph-funnel-simple"></i>
                 </button>
-
                 <div class="dropdown">
-                    <button class="btn btn-icon text-body" data-bs-toggle="dropdown"><i
-                            class="ph ph-dots-three-vertical fs-5"></i></button>
+                    <button class="fc-btn-nav-icon" data-bs-toggle="dropdown">
+                        <i class="ph ph-dots-three-vertical"></i>
+                    </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-4">
-                        <li>
-                            <button class="dropdown-item fw-bold text-primary"
-                                onclick="App.Controller.abrirVisaoMacro()">
-                                <i class="ph ph-telescope me-2"></i> Visão Macro (3 Meses)
-                            </button>
-                        </li>
-                        <li>
-                            <button class="dropdown-item fw-bold text-warning"
-                                onclick="App.Controller.abrirAgenda()">
-                                <i class="ph ph-calendar-check me-2"></i> Agenda do Dia
-                            </button>
-                        </li>
-                        <li>
-                            <button class="dropdown-item fw-bold"
-                                onclick="App.Controller.abrirNotas()">
-                                <i class="ph ph-note me-2"></i> Notas
-                            </button>
-                        </li>
-                        <li>
-                            <button class="dropdown-item fw-bold text-info"
-                                onclick="App.Controller.abrirViagens()">
-                                <i class="ph ph-airplane me-2"></i> Viagens
-                            </button>
-                        </li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li><button class="dropdown-item" onclick="App.Controller.alternarTema()"><i
-                                    class="ph ph-moon me-2"></i>Tema</button></li>
-                        <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modalConfig"><i
-                                    class="ph ph-gear me-2"></i>Ajustes</button></li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li><button class="dropdown-item text-danger" onclick="App.Controller.iniciarShutdown()"><i
-                                    class="ph ph-power me-2"></i>Encerrar Dia</button></li>
+                        <li><button class="dropdown-item" onclick="App.Controller.abrirVisaoMacro()"><i class="ph ph-telescope me-2"></i> Visão Macro</button></li>
+                        <li><button class="dropdown-item" onclick="App.Controller.abrirAgenda()"><i class="ph ph-calendar-check me-2"></i> Agenda</button></li>
+                        <li><button class="dropdown-item" onclick="App.Controller.abrirNotas()"><i class="ph ph-note me-2"></i> Notas</button></li>
+                        <li><button class="dropdown-item" onclick="App.Controller.abrirViagens()"><i class="ph ph-airplane me-2"></i> Viagens</button></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><button class="dropdown-item" onclick="App.Controller.alternarTema()"><i class="ph ph-moon me-2"></i> Tema</button></li>
+                        <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modalConfig"><i class="ph ph-gear me-2"></i> Ajustes</button></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><button class="dropdown-item text-danger" onclick="App.Controller.iniciarShutdown()"><i class="ph ph-power me-2"></i> Encerrar Dia</button></li>
                     </ul>
                 </div>
+                <button id="btn-install-app" class="fc-btn-nav-icon d-none" onclick="App.installPWA()" title="Instalar App">
+                    <i class="ph ph-download-simple"></i>
+                </button>
             </div>
         </div>
     </nav>
 
-    <div class="container mt-4 mb-5 pb-5">
+    <div class="fc-main">
 
         <section id="view-login" class="row justify-content-center min-vh-100 align-items-center">
             <div class="col-md-6 col-lg-4">
@@ -238,6 +194,9 @@
         </section>
 
         <section id="view-dashboard" class="d-none animate-fade-in">
+
+        <!-- ======== SEÇÃO: HOJE ======== -->
+        <section id="secao-hoje" class="fc-section">
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card border-0 shadow-sm bg-dark text-white overflow-hidden rounded-4">
@@ -250,8 +209,7 @@
                                     <span class="fs-4">min</span>
                                 </h2>
                                 <div class="d-flex align-items-center gap-2 mt-2">
-                                    <span id="badge-nivel"
-                                        class="badge bg-white bg-opacity-10 border border-white border-opacity-10 rounded-pill px-3 py-2 fw-normal">
+                                    <span class="badge bg-white bg-opacity-10 border border-white border-opacity-10 rounded-pill px-3 py-2 fw-normal" id="badge-nivel-hero">
                                         🌱 Iniciante
                                     </span>
                                 </div>
@@ -435,7 +393,290 @@
                     </div>
                 </div>
             </div>
+        </section><!-- /secao-hoje -->
+
+        <!-- ======== SEÇÃO: HÁBITOS ======== -->
+        <section id="secao-habitos" class="fc-section d-none">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h4 class="fw-bold mb-1" style="color:#e5e5e5;">Hábitos &amp; Rituais</h4>
+                    <p class="text-muted small mb-0">Construa sua disciplina um dia de cada vez</p>
+                </div>
+                <button class="btn btn-sm btn-success rounded-pill px-3" onclick="App.Controller.abrirModalHabito()">
+                    <i class="ph ph-plus me-1"></i> Novo Hábito
+                </button>
+            </div>
+            <div class="d-flex gap-2 mb-4">
+                <button class="btn btn-sm btn-primary rounded-pill" id="btn-habitos-lista" onclick="App.Controller.toggleViewHabitos('lista')">
+                    <i class="ph ph-list me-1"></i> Lista
+                </button>
+                <button class="btn btn-sm btn-outline-secondary rounded-pill" id="btn-habitos-tracker" onclick="App.Controller.toggleViewHabitos('tracker')">
+                    <i class="ph ph-calendar me-1"></i> Tracker Mensal
+                </button>
+                <button class="btn btn-sm btn-outline-secondary rounded-pill" id="btn-habitos-stats" onclick="App.Controller.toggleViewHabitos('stats')">
+                    <i class="ph ph-chart-bar me-1"></i> Estatísticas
+                </button>
+            </div>
+            <div id="habitos-view-lista">
+                <ul id="lista-habitos-full" class="list-group list-group-flush gap-2"></ul>
+                <div id="empty-habitos-full" class="text-center py-5 d-none" style="color:#555;">
+                    <i class="ph ph-plant" style="font-size:3rem;opacity:0.3;display:block;margin-bottom:12px;"></i>
+                    <p>Nenhum hábito ainda. Crie o primeiro!</p>
+                </div>
+            </div>
+            <div id="habitos-view-tracker" class="d-none fc-tracker-wrap">
+                <div id="monthly-tracker-container"></div>
+            </div>
+            <div id="habitos-view-stats" class="d-none">
+                <div class="row g-3" id="habitos-stats-cards"></div>
+            </div>
         </section>
+
+        <!-- ======== SEÇÃO: BEM-ESTAR ======== -->
+        <section id="secao-bemestar" class="fc-section d-none">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h4 class="fw-bold mb-1" style="color:#e5e5e5;">Bem-estar</h4>
+                    <p class="text-muted small mb-0">Cuide da sua energia física e mental</p>
+                </div>
+                <button class="btn btn-sm btn-outline-info rounded-pill px-3" onclick="App.Controller.abrirBemEstar()">
+                    <i class="ph ph-arrow-square-out me-1"></i> Detalhes
+                </button>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold mb-3"><i class="ph ph-smiley me-2 text-warning"></i>Como você está hoje?</h6>
+                            <div class="d-flex justify-content-around mb-3" id="bemestar-mood-selector">
+                                <button class="fc-mood-btn" data-nivel="1" onclick="App.Controller.registrarHumor(1)" title="Péssimo">😞</button>
+                                <button class="fc-mood-btn" data-nivel="2" onclick="App.Controller.registrarHumor(2)" title="Ruim">😕</button>
+                                <button class="fc-mood-btn" data-nivel="3" onclick="App.Controller.registrarHumor(3)" title="Neutro">😐</button>
+                                <button class="fc-mood-btn" data-nivel="4" onclick="App.Controller.registrarHumor(4)" title="Bom">😊</button>
+                                <button class="fc-mood-btn" data-nivel="5" onclick="App.Controller.registrarHumor(5)" title="Radiante">😄</button>
+                            </div>
+                            <textarea id="bemestar-nota-rapida" class="form-control form-control-sm mb-3" rows="2" placeholder="Gratidão do dia... o que foi bom?"></textarea>
+                            <button class="btn btn-sm btn-primary w-100 rounded-pill" onclick="App.Controller.salvarHumorRapido()">
+                                <i class="ph ph-floppy-disk me-1"></i> Salvar Registro
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold mb-3"><i class="ph ph-drop me-2 text-info"></i>Hidratação</h6>
+                            <div class="d-flex align-items-baseline gap-2 mb-3">
+                                <span class="display-6 fw-bold text-info" id="bemestar-copos-sec">0</span>
+                                <span class="text-muted">/ <span id="bemestar-meta-sec">8</span> copos</span>
+                            </div>
+                            <div id="bemestar-dots-sec" class="d-flex flex-wrap gap-1 mb-3"></div>
+                            <button class="btn btn-sm btn-info w-100 rounded-pill text-white" onclick="App.Controller.registrarCopo()">
+                                <i class="ph ph-plus me-1"></i> Registrar Copo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold mb-3"><i class="ph ph-moon me-2 text-primary"></i>Sono</h6>
+                            <div id="bemestar-sono-sec" class="text-muted small">Nenhum registro de sono esta semana.</div>
+                            <button class="btn btn-sm btn-outline-primary mt-3 rounded-pill w-100" onclick="App.Controller.abrirBemEstar()">
+                                <i class="ph ph-plus me-1"></i> Registrar Sono
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold mb-3"><i class="ph ph-chart-line me-2 text-success"></i>Humor — Últimos 7 Dias</h6>
+                            <div id="humor-historico-sec" class="d-flex gap-2 align-items-end justify-content-between" style="height:64px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== SEÇÃO: FINANCEIRO ======== -->
+        <section id="secao-financeiro" class="fc-section d-none">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h4 class="fw-bold mb-1" style="color:#e5e5e5;">Financeiro</h4>
+                    <p class="text-muted small mb-0">Controle suas receitas, gastos e investimentos</p>
+                </div>
+                <button class="btn btn-sm btn-outline-warning rounded-pill px-3" onclick="App.Controller.abrirFinanceiro()">
+                    <i class="ph ph-arrow-square-out me-1"></i> Detalhes
+                </button>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="fc-stat-card">
+                        <div class="fc-stat-label">Receitas</div>
+                        <div class="fc-stat-value text-success" id="fin-sec-receitas">R$ 0</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="fc-stat-card">
+                        <div class="fc-stat-label">Gastos</div>
+                        <div class="fc-stat-value text-danger" id="fin-sec-gastos">R$ 0</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="fc-stat-card">
+                        <div class="fc-stat-label">Saldo</div>
+                        <div class="fc-stat-value" id="fin-sec-saldo">R$ 0</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold mb-3">Lançamento Rápido</h6>
+                            <div class="mb-2">
+                                <input type="text" id="fin-sec-desc" class="form-control form-control-sm" placeholder="Descrição">
+                            </div>
+                            <div class="row g-2 mb-2">
+                                <div class="col-6"><input type="number" id="fin-sec-valor" class="form-control form-control-sm" placeholder="Valor (R$)" min="0" step="0.01"></div>
+                                <div class="col-6">
+                                    <select id="fin-sec-tipo" class="form-select form-select-sm">
+                                        <option value="despesa">Gasto</option>
+                                        <option value="receita">Receita</option>
+                                        <option value="investimento">Investimento</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-primary w-100 rounded-pill" onclick="App.Controller.lancarTransacaoRapida()">
+                                <i class="ph ph-plus me-1"></i> Registrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold mb-3">Últimas Transações</h6>
+                            <div id="fin-sec-lista" class="small"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== SEÇÃO: METAS ======== -->
+        <section id="secao-metas" class="fc-section d-none">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h4 class="fw-bold mb-1" style="color:#e5e5e5;">Metas Trimestrais</h4>
+                    <p class="text-muted small mb-0">Seus grandes objetivos de 90 dias</p>
+                </div>
+                <button class="btn btn-sm btn-primary rounded-pill px-3" onclick="App.Controller.abrirVisaoMacro()">
+                    <i class="ph ph-telescope me-1"></i> Visão Macro
+                </button>
+            </div>
+            <div id="secao-metas-grid" class="row g-3">
+                <!-- Renderizado por JS -->
+            </div>
+        </section>
+
+        <!-- ======== SEÇÃO: CONQUISTAS ======== -->
+        <section id="secao-conquistas" class="fc-section d-none">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <h4 class="fw-bold mb-1" style="color:#e5e5e5;">Conquistas</h4>
+                    <p class="text-muted small mb-0" id="conquistas-subtitulo">Desbloqueie troféus ao construir hábitos</p>
+                </div>
+            </div>
+            <div class="mb-4">
+                <div style="height:6px;background:#2a2a2a;border-radius:3px;overflow:hidden;">
+                    <div id="conquistas-progress-bar" style="height:100%;background:linear-gradient(90deg,#f59e0b,#fbbf24);border-radius:3px;width:0%;transition:width 0.6s ease;"></div>
+                </div>
+                <div class="text-muted small mt-1" id="conquistas-progress-txt"></div>
+            </div>
+            <h6 class="text-muted small fw-bold text-uppercase mb-3">Consistência</h6>
+            <div class="fc-badge-grid mb-4" id="conquistas-consistencia"></div>
+            <h6 class="text-muted small fw-bold text-uppercase mb-3">Frequência</h6>
+            <div class="fc-badge-grid mb-4" id="conquistas-frequencia"></div>
+            <h6 class="text-muted small fw-bold text-uppercase mb-3">Compromisso</h6>
+            <div class="fc-badge-grid mb-4" id="conquistas-compromisso"></div>
+            <h6 class="text-muted small fw-bold text-uppercase mb-3">Avançadas</h6>
+            <div class="fc-badge-grid" id="conquistas-avancadas"></div>
+        </section>
+
+        <!-- ======== SEÇÃO: DASHBOARD ======== -->
+        <section id="secao-dashboard" class="fc-section d-none">
+            <div class="mb-4">
+                <h4 class="fw-bold mb-1" style="color:#e5e5e5;">Dashboard</h4>
+                <p class="text-muted small mb-0">Visão analítica da sua produtividade</p>
+            </div>
+            <div class="row g-3 mb-4" id="dash-stats-row">
+                <div class="col-6 col-md-3">
+                    <div class="fc-stat-card">
+                        <div class="fc-stat-label">Score Hoje</div>
+                        <div class="fc-stat-value" id="dsec-score">0</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="fc-stat-card">
+                        <div class="fc-stat-label">Tarefas Hoje</div>
+                        <div class="fc-stat-value" id="dsec-tarefas">0</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="fc-stat-card">
+                        <div class="fc-stat-label">Min. de Foco</div>
+                        <div class="fc-stat-value" id="dsec-foco">0</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="fc-stat-card">
+                        <div class="fc-stat-label">Melhor Streak</div>
+                        <div class="fc-stat-value" id="dsec-streak">0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <div class="fc-chart-card">
+                        <div class="fc-chart-title">Score Diário — Últimas 2 Semanas</div>
+                        <canvas id="chart-dash-score" height="140"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="fc-chart-card">
+                        <div class="fc-chart-title">Distribuição</div>
+                        <canvas id="chart-dash-distrib" height="180"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== SEÇÃO: CALENDÁRIO ======== -->
+        <section id="secao-calendario" class="fc-section d-none">
+            <div class="mb-4">
+                <h4 class="fw-bold mb-1" style="color:#e5e5e5;">Calendário de Atividade</h4>
+                <p class="text-muted small mb-0">Heatmap do seu histórico anual</p>
+            </div>
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4">
+                    <div class="fc-heatmap-wrap">
+                        <div id="fc-heatmap-grid" class="fc-heatmap"></div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mt-3" style="font-size:0.72rem;color:#666;">
+                        <span>Menos</span>
+                        <div class="fc-heat-cell" style="width:12px;height:12px;"></div>
+                        <div class="fc-heat-cell" data-level="1" style="width:12px;height:12px;"></div>
+                        <div class="fc-heat-cell" data-level="2" style="width:12px;height:12px;"></div>
+                        <div class="fc-heat-cell" data-level="3" style="width:12px;height:12px;"></div>
+                        <div class="fc-heat-cell" data-level="4" style="width:12px;height:12px;"></div>
+                        <span>Mais</span>
+                    </div>
+                </div>
+            </div>
+            <div id="calendario-detalhe-dia" class="mt-3"></div>
+        </section>
+
+        </section><!-- /view-dashboard -->
 
         <section id="view-focus"
             class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center bg-dark text-white"

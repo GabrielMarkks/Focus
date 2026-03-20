@@ -1504,5 +1504,142 @@ export const Controller = {
                 <h6 class="fw-bold mb-2">Dia ${dia}</h6>
                 ${itens}
             </div>`;
+    },
+
+    // ============================================================
+    // FC DESIGN SYSTEM — NAVEGAÇÃO E NOVOS HANDLERS
+    // ============================================================
+
+    navegar(secao) {
+        View.navegar(secao);
+        switch (secao) {
+            case 'hoje':
+                this.refreshDash();
+                break;
+            case 'habitos': {
+                const h = Model.getHabitos();
+                View.renderSecaoHabitos(h);
+                View.renderHabitosStats(h);
+                break;
+            }
+            case 'bemestar': {
+                const bm = Model.getBemestar();
+                const humor = bm.humor || [];
+                View.renderBemestarSection(bm, humor);
+                break;
+            }
+            case 'financeiro': {
+                const fin = Model.getFinanceiro();
+                View.renderSecaoFinanceiro(fin);
+                break;
+            }
+            case 'metas':
+                View.renderSecaoMetas(Model.usuario);
+                break;
+            case 'conquistas':
+                this._renderConquistas();
+                break;
+            case 'dashboard':
+                View.renderSecaoDashboard(Model.usuario);
+                break;
+            case 'calendario':
+                View.renderSecaoCalendario(Model.usuario);
+                break;
+        }
+        Model.salvar();
+    },
+
+    _renderConquistas() {
+        const habitos = Model.getHabitos();
+        const totalCheckins = habitos.reduce((s, h) => s + (h.historico?.length || 0), 0);
+        const maxStreak = habitos.reduce((s, h) => Math.max(s, h.streak || 0), 0);
+        const totalHabitos = habitos.length;
+        const metas = Model.usuario.metasTrimestrais || [];
+        const totalMetas = metas.length;
+        const metasConcluidas = metas.filter(m => m.concluida || (m.progresso || 0) >= 100).length;
+        const minFoco = (Model.usuario.historico || []).reduce((s, h) => s + (h.minutos || 0), 0);
+        const totalTarefas = (Model.usuario.historico || []).length;
+        View.renderConquistas({ totalCheckins, maxStreak, totalHabitos, totalMetas, metasConcluidas, minFoco, totalTarefas });
+    },
+
+    registrarHumor(nivel) {
+        const bm = Model.getBemestar();
+        if (!bm.humor) bm.humor = [];
+        const hoje = new Date().toLocaleDateString('pt-BR');
+        const idx = bm.humor.findIndex(h => h.data === hoje);
+        if (idx >= 0) bm.humor[idx].nivel = nivel;
+        else bm.humor.push({ data: hoje, nivel });
+        Model.salvar();
+        document.querySelectorAll('.fc-mood-btn').forEach(b => {
+            b.classList.toggle('selecionado', parseInt(b.dataset.nivel) === nivel);
+        });
+        View.notify('Humor registrado! ' + ['😞', '😕', '😐', '😊', '😄'][nivel - 1]);
+        View.renderHumorHistorico(bm.humor);
+    },
+
+    salvarHumorRapido() {
+        const nota = document.getElementById('bemestar-nota-rapida')?.value.trim();
+        const bm = Model.getBemestar();
+        if (!bm.humor) bm.humor = [];
+        const hoje = new Date().toLocaleDateString('pt-BR');
+        const idx = bm.humor.findIndex(h => h.data === hoje);
+        if (nota) {
+            if (idx >= 0) bm.humor[idx].nota = nota;
+            else bm.humor.push({ data: hoje, nivel: 3, nota });
+        }
+        Model.salvar();
+        View.notify('Registro salvo!', 'success');
+    },
+
+    toggleViewHabitos(vista) {
+        const views = ['lista', 'tracker', 'stats'];
+        views.forEach(v => {
+            const el = document.getElementById('habitos-view-' + v);
+            const btn = document.getElementById('btn-habitos-' + v);
+            if (el) el.classList.toggle('d-none', v !== vista);
+            if (btn) {
+                btn.classList.toggle('btn-primary', v === vista);
+                btn.classList.toggle('btn-outline-secondary', v !== vista);
+            }
+        });
+        if (vista === 'tracker') View.renderMonthlyTracker(Model.getHabitos());
+        if (vista === 'stats') View.renderHabitosStats(Model.getHabitos());
+    },
+
+    checkinHabitoFull(id) {
+        Model.checkinHabito(id);
+        View.renderSecaoHabitos(Model.getHabitos());
+        View.renderHabits(Model.usuario);
+        Model.salvar();
+        View.notify('✅ Check-in registrado!', 'success');
+    },
+
+    trackerCheckin(habitoId, dia, mes, ano) {
+        const habitos = Model.getHabitos();
+        const h = habitos.find(x => x.id === habitoId);
+        if (!h) return;
+        const dataStr = `${String(dia).padStart(2, '0')}/${String(mes + 1).padStart(2, '0')}/${ano}`;
+        if (!h.historico) h.historico = [];
+        const idx = h.historico.indexOf(dataStr);
+        if (idx >= 0) h.historico.splice(idx, 1);
+        else h.historico.push(dataStr);
+        Model.salvar();
+        View.renderMonthlyTracker(Model.getHabitos());
+    },
+
+    lancarTransacaoRapida() {
+        const desc = document.getElementById('fin-sec-desc')?.value.trim();
+        const valor = parseFloat(document.getElementById('fin-sec-valor')?.value);
+        const tipo = document.getElementById('fin-sec-tipo')?.value || 'despesa';
+        if (!desc) return View.notify('Informe a descrição.', 'warning');
+        if (!valor || valor <= 0) return View.notify('Informe um valor válido.', 'warning');
+        const hoje = new Date().toISOString().split('T')[0];
+        Model.addTransacao(tipo, valor, desc, tipo, hoje);
+        ['fin-sec-desc', 'fin-sec-valor'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        View.renderSecaoFinanceiro(Model.getFinanceiro());
+        View.notify('Transação registrada!', 'success');
     }
 };

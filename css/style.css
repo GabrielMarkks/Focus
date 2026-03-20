@@ -718,3 +718,408 @@ body {
     display: none;
 }
 #btn-notif-badge.ativo { display: block; }
+
+/* ============================================================
+   FC DESIGN SYSTEM — DARK AMBER (TaskLine Style)
+   ============================================================ */
+
+/* --- Navbar --- */
+.fc-navbar {
+    background: #161616;
+    border-bottom: 1px solid #2a2a2a;
+    z-index: 1020;
+}
+.fc-navbar-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 20px;
+    height: 56px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+.fc-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    text-decoration: none;
+}
+.fc-brand-icon { font-size: 1.3rem; }
+.fc-brand-name {
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: #f59e0b;
+    letter-spacing: -0.5px;
+}
+.fc-brand-tagline {
+    font-size: 0.68rem;
+    color: #555;
+    margin-left: 2px;
+}
+
+/* Tabs */
+.fc-tabs {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex: 1;
+    padding: 0 4px;
+}
+.fc-tabs::-webkit-scrollbar { display: none; }
+.fc-tab {
+    background: none;
+    border: none;
+    padding: 5px 13px;
+    border-radius: 7px;
+    font-size: 0.81rem;
+    font-weight: 500;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-family: inherit;
+}
+.fc-tab:hover { background: #222; color: #ddd; }
+.fc-tab.ativo {
+    background: #f59e0b;
+    color: #111;
+    font-weight: 700;
+}
+
+/* Navbar Actions */
+.fc-navbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.fc-nivel-badge {
+    font-size: 0.72rem;
+    color: #f59e0b;
+    font-weight: 600;
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.2);
+    border-radius: 20px;
+    padding: 3px 10px;
+    white-space: nowrap;
+}
+.fc-btn-capture {
+    background: #f59e0b;
+    color: #111 !important;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 5px 12px;
+    transition: all 0.15s;
+    font-family: inherit;
+    cursor: pointer;
+}
+.fc-btn-capture:hover {
+    background: #d97706;
+    transform: translateY(-1px);
+}
+.fc-btn-nav-icon {
+    background: none;
+    border: 1px solid #333;
+    color: #888;
+    border-radius: 7px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    padding: 0;
+    cursor: pointer;
+    font-size: 1rem;
+}
+.fc-btn-nav-icon:hover {
+    background: #222;
+    color: #ddd;
+    border-color: #555;
+}
+
+/* --- Main wrapper --- */
+.fc-main { min-height: calc(100vh - 56px); }
+
+/* --- Section --- */
+.fc-section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 20px 80px;
+    animation: fcFadeUp 0.2s ease;
+}
+@keyframes fcFadeUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Stat Cards --- */
+.fc-stat-card {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 16px;
+    padding: 18px 20px;
+    transition: transform 0.15s, border-color 0.15s;
+}
+.fc-stat-card:hover { transform: translateY(-2px); border-color: #3a3a3a; }
+.fc-stat-value {
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: #f59e0b;
+    line-height: 1;
+    letter-spacing: -1px;
+}
+.fc-stat-label {
+    font-size: 0.7rem;
+    color: #666;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 3px;
+}
+.fc-stat-sub {
+    font-size: 0.78rem;
+    color: #888;
+    margin-top: 2px;
+}
+
+/* --- Score Hero --- */
+.fc-score-hero {
+    background: linear-gradient(135deg, #1a1a1a 0%, #1f1c0f 100%);
+    border: 1px solid #2a2a2a;
+    border-radius: 20px;
+    padding: 24px 28px;
+    position: relative;
+    overflow: hidden;
+}
+.fc-score-hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -40px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(245,158,11,0.08) 0%, transparent 70%);
+    pointer-events: none;
+}
+.fc-score-number {
+    font-size: 3.5rem;
+    font-weight: 900;
+    color: #f59e0b;
+    line-height: 1;
+    letter-spacing: -2px;
+}
+.fc-score-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #777;
+    margin-top: 3px;
+}
+.fc-score-bar { height: 3px; background: #2a2a2a; border-radius: 2px; margin-top: 10px; }
+.fc-score-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    border-radius: 2px;
+    transition: width 0.8s ease;
+}
+
+/* --- Monthly Habit Tracker --- */
+.fc-tracker-wrap { overflow-x: auto; }
+.fc-tracker-table {
+    border-collapse: separate;
+    border-spacing: 3px;
+    min-width: 500px;
+}
+.fc-tracker-table th {
+    font-size: 0.6rem;
+    color: #555;
+    font-weight: 600;
+    text-align: center;
+    padding: 2px 0;
+}
+.fc-tracker-name {
+    font-size: 0.78rem;
+    color: #bbb;
+    max-width: 110px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 8px;
+    text-align: right;
+}
+.fc-tracker-cell {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+.fc-tracker-cell.done   { background: #f59e0b; border-color: #d97706; }
+.fc-tracker-cell.today  { border-color: #f59e0b !important; border-width: 2px; }
+.fc-tracker-cell:hover  { opacity: 0.75; }
+
+/* --- Mood Selector --- */
+.fc-mood-btn {
+    font-size: 1.8rem;
+    background: none;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    line-height: 1;
+}
+.fc-mood-btn:hover { transform: scale(1.2); }
+.fc-mood-btn.selecionado {
+    border-color: #f59e0b;
+    background: rgba(245,158,11,0.12);
+    transform: scale(1.15);
+}
+
+/* --- Achievement Cards --- */
+.fc-badge-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+}
+.fc-badge-card {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 14px;
+    padding: 16px 12px;
+    text-align: center;
+    transition: all 0.2s;
+}
+.fc-badge-card.desbloqueado {
+    border-color: #f59e0b;
+    background: rgba(245,158,11,0.05);
+}
+.fc-badge-card.bloqueado {
+    opacity: 0.38;
+    filter: grayscale(1);
+}
+.fc-badge-icon { font-size: 2.4rem; display: block; margin-bottom: 7px; }
+.fc-badge-title { font-size: 0.75rem; font-weight: 700; color: #ddd; margin-bottom: 3px; }
+.fc-badge-desc  { font-size: 0.65rem; color: #666; }
+.fc-badge-card.desbloqueado .fc-badge-title { color: #f59e0b; }
+
+/* --- Calendar Heatmap --- */
+.fc-heatmap-wrap { overflow-x: auto; }
+.fc-heatmap {
+    display: grid;
+    grid-template-columns: repeat(53, 14px);
+    grid-template-rows: repeat(7, 14px);
+    gap: 2px;
+    grid-auto-flow: column;
+}
+.fc-heat-cell {
+    width: 14px; height: 14px;
+    border-radius: 2px;
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    cursor: default;
+    transition: opacity 0.1s;
+}
+.fc-heat-cell:hover { opacity: 0.7; }
+.fc-heat-cell[data-level="1"] { background: #78350f; border-color: #92400e; }
+.fc-heat-cell[data-level="2"] { background: #b45309; border-color: #d97706; }
+.fc-heat-cell[data-level="3"] { background: #d97706; border-color: #f59e0b; }
+.fc-heat-cell[data-level="4"] { background: #f59e0b; border-color: #fbbf24; }
+
+/* --- Chart Cards --- */
+.fc-chart-card {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 16px;
+    padding: 20px;
+}
+.fc-chart-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 14px;
+}
+
+/* --- Goal Cards --- */
+.fc-goal-card {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 16px;
+    padding: 20px;
+    transition: all 0.2s;
+}
+.fc-goal-card:hover { border-color: #3a3a3a; }
+.fc-goal-card.concluida { border-color: #f59e0b; background: rgba(245,158,11,0.04); }
+.fc-goal-bar { height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; margin-top: 10px; }
+.fc-goal-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+.fc-add-goal-btn {
+    background: none;
+    border: 2px dashed #2a2a2a;
+    border-radius: 16px;
+    padding: 20px;
+    color: #555;
+    width: 100%;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    font-family: inherit;
+}
+.fc-add-goal-btn:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: rgba(245,158,11,0.04);
+}
+
+/* --- Finance section inline --- */
+.fc-fin-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px solid #1e1e1e;
+}
+.fc-fin-row:last-child { border-bottom: none; }
+
+/* --- Dark mode card override for fc-section --- */
+[data-bs-theme="dark"] .fc-section .card {
+    background-color: #1a1a1a;
+    border-color: #2a2a2a;
+}
+[data-bs-theme="dark"] .fc-section .card-header {
+    background-color: #1f1f1f;
+    border-bottom-color: #2a2a2a;
+}
+[data-bs-theme="dark"] .fc-section .form-control,
+[data-bs-theme="dark"] .fc-section .form-select {
+    background-color: #111;
+    border-color: #333;
+    color: #e0e0e0;
+}
+[data-bs-theme="dark"] .fc-section .form-control:focus,
+[data-bs-theme="dark"] .fc-section .form-select:focus {
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.2);
+    border-color: #f59e0b;
+}
+[data-bs-theme="dark"] .fc-section .list-group-item {
+    background-color: #1a1a1a;
+    border-color: #2a2a2a;
+    color: #e0e0e0;
+}
+[data-bs-theme="dark"] .fc-section .hero-input-container {
+    background-color: #1a1a1a;
+    border-color: #f59e0b;
+}
