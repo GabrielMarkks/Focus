@@ -671,5 +671,32 @@ export const Model = {
     pushChatMessage(role, content) {
         this.chatMemory.history.push({ role, content });
         DB.set('chat', this.chatMemory.history);
+    },
+
+    // ============================================================
+    // FC DESIGN SYSTEM — HELPERS
+    // ============================================================
+
+    getHabitos() {
+        return this.usuario.habitos || [];
+    },
+
+    checkinHabito(id) {
+        const h = this.usuario.habitos.find(x => x.id === id);
+        if (!h) return;
+        const hoje = new Date().toLocaleDateString('pt-BR');
+        if (!h.historico) h.historico = [];
+        const jaFeito = h.historico.includes(hoje);
+        if (jaFeito) {
+            h.historico = h.historico.filter(d => d !== hoje);
+            h.concluidoHoje = false;
+            h.streak = Math.max(0, (h.streak || 0) - 1);
+        } else {
+            h.historico.push(hoje);
+            h.concluidoHoje = true;
+            h.streak = (h.streak || 0) + 1;
+            h.ultimaData = hoje;
+        }
+        this.salvarPerfilBackground();
     }
 };

@@ -444,7 +444,11 @@ const App = {
             const m = App.Model.getMinHoje(),
                 nv = App.Model.getNivel();
             document.getElementById('display-minutos-foco').innerText = m;
-            document.getElementById('badge-nivel').innerText = `${nv.i} ${nv.t}`;
+            const _badgeTxt = `${nv.i} ${nv.t}`;
+            const _navBadge = document.getElementById('badge-nivel');
+            if (_navBadge) _navBadge.innerText = _badgeTxt;
+            const _heroBadge = document.getElementById('badge-nivel-hero');
+            if (_heroBadge) _heroBadge.innerText = _badgeTxt;
             const b = document.getElementById('barra-dia-fundo');
             if (b) b.style.width = `${Math.min((m/240)*100,100)}%`;
         },

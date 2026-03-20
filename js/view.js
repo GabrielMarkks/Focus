@@ -91,6 +91,7 @@ export const View = {
         this.els.dash.classList.remove('d-none');
         this.els.nav.classList.remove('d-none');
         document.title = "Focus Coach";
+        this.navegar('hoje');
 
         this.applyTheme(usuario.config.tema);
 
@@ -1005,7 +1006,11 @@ export const View = {
 
     updateStats(minHoje, nivel) {
         document.getElementById('display-minutos-foco').innerText = minHoje;
-        document.getElementById('badge-nivel').innerText = `${nivel.i} ${nivel.t}`;
+        const txt = `${nivel.i} ${nivel.t}`;
+        const navBadge = document.getElementById('badge-nivel');
+        if (navBadge) navBadge.innerText = txt;
+        const heroBadge = document.getElementById('badge-nivel-hero');
+        if (heroBadge) heroBadge.innerText = txt;
         const b = document.getElementById('barra-dia-fundo');
         if (b) b.style.width = `${Math.min((minHoje / 240) * 100, 100)}%`;
     },
@@ -1486,5 +1491,456 @@ export const View = {
                 </button>
             </div>
         `;
+    },
+
+    // ============================================================
+    // FC DESIGN SYSTEM — NAVEGAÇÃO E SEÇÕES
+    // ============================================================
+
+    navegar(secao) {
+        document.querySelectorAll('.fc-tab').forEach(t => {
+            t.classList.toggle('ativo', t.dataset.secao === secao);
+        });
+        document.querySelectorAll('.fc-section').forEach(s => s.classList.add('d-none'));
+        const target = document.getElementById('secao-' + secao);
+        if (target) target.classList.remove('d-none');
+    },
+
+    // ---- Hábitos (seção full-page) ----
+    renderSecaoHabitos(habitos) {
+        const lista = document.getElementById('lista-habitos-full');
+        const empty = document.getElementById('empty-habitos-full');
+        if (!lista) return;
+        if (!habitos || habitos.length === 0) {
+            lista.innerHTML = '';
+            empty?.classList.remove('d-none');
+            return;
+        }
+        empty?.classList.add('d-none');
+        lista.innerHTML = habitos.map(h => {
+            const streak = h.streak || 0;
+            const hoje = new Date().toLocaleDateString('pt-BR');
+            const feitoHoje = h.concluidoHoje || (h.historico || []).includes(hoje);
+            const streakBadge = streak >= 3 ? `<span class="streak-hobby ms-2">${streak}🔥</span>` : '';
+            const nome = h.texto || h.nome || 'Hábito';
+            return `
+            <li class="list-group-item rounded-3 mb-1 d-flex align-items-center justify-content-between gap-2">
+                <div class="d-flex align-items-center gap-2 flex-grow-1">
+                    <button class="btn btn-sm ${feitoHoje ? 'btn-success' : 'btn-outline-secondary'} rounded-circle" style="width:32px;height:32px;flex-shrink:0;"
+                        onclick="App.Controller.checkinHabitoFull('${h.id}')">
+                        <i class="ph ph-check"></i>
+                    </button>
+                    <div>
+                        <span class="fw-medium">${this.escapeHTML(nome)}</span>
+                        ${streakBadge}
+                        <div class="text-muted" style="font-size:0.72rem;">${this.escapeHTML(h.categoria || h.dias || 'Geral')}</div>
+                    </div>
+                </div>
+                <div class="d-flex gap-1">
+                    <button class="btn btn-sm btn-icon text-muted" onclick="App.Controller.delHabito('${h.id}')">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </div>
+            </li>`;
+        }).join('');
+    },
+
+    renderMonthlyTracker(habitos) {
+        const container = document.getElementById('monthly-tracker-container');
+        if (!container) return;
+        const agora = new Date();
+        const ano = agora.getFullYear();
+        const mes = agora.getMonth();
+        const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+        const hoje = agora.getDate();
+
+        const nomeMes = agora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        const dias = Array.from({ length: diasNoMes }, (_, i) => i + 1);
+
+        if (!habitos || habitos.length === 0) {
+            container.innerHTML = '<p class="text-muted small">Nenhum hábito ainda.</p>';
+            return;
+        }
+
+        const thDias = dias.map(d => `<th class="${d === hoje ? 'text-warning' : ''}">${d}</th>`).join('');
+
+        const rows = habitos.map(h => {
+            // Parse pt-BR dates: DD/MM/YYYY
+            const cellsDone = new Set(
+                (h.historico || [])
+                    .filter(ds => {
+                        const parts = ds.split('/');
+                        if (parts.length !== 3) return false;
+                        return parseInt(parts[1]) - 1 === mes && parseInt(parts[2]) === ano;
+                    })
+                    .map(ds => parseInt(ds.split('/')[0]))
+            );
+
+            const cells = dias.map(d => {
+                const done = cellsDone.has(d);
+                const isToday = d === hoje;
+                return `<td class="fc-tracker-cell ${done ? 'done' : ''} ${isToday ? 'today' : ''}" title="Dia ${d}" onclick="App.Controller.trackerCheckin('${h.id}', ${d}, ${mes}, ${ano})"></td>`;
+            }).join('');
+
+            return `<tr>
+                <td class="fc-tracker-name">${this.escapeHTML(h.texto || h.nome || 'Hábito')}</td>
+                ${cells}
+            </tr>`;
+        }).join('');
+
+        container.innerHTML = `
+            <p class="text-muted small fw-bold text-capitalize mb-3">${nomeMes}</p>
+            <div class="fc-tracker-wrap">
+                <table class="fc-tracker-table">
+                    <thead><tr><th></th>${thDias}</tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>`;
+    },
+
+    renderHabitosStats(habitos) {
+        const container = document.getElementById('habitos-stats-cards');
+        if (!container || !habitos) return;
+        const totalCheckins = habitos.reduce((s, h) => s + (h.historico?.length || 0), 0);
+        const maxStreak = habitos.reduce((s, h) => Math.max(s, h.streak || 0), 0);
+        const melhorHabito = habitos.reduce((best, h) => (!best || (h.streak || 0) > (best.streak || 0)) ? h : best, null);
+
+        container.innerHTML = `
+            <div class="col-6 col-md-3">
+                <div class="fc-stat-card"><div class="fc-stat-label">Total de Hábitos</div><div class="fc-stat-value">${habitos.length}</div></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="fc-stat-card"><div class="fc-stat-label">Total Check-ins</div><div class="fc-stat-value">${totalCheckins}</div></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="fc-stat-card"><div class="fc-stat-label">Maior Streak</div><div class="fc-stat-value">${maxStreak}🔥</div></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="fc-stat-card"><div class="fc-stat-label">Melhor Hábito</div><div class="fc-stat-value" style="font-size:1rem;">${melhorHabito ? this.escapeHTML(melhorHabito.nome) : '—'}</div></div>
+            </div>`;
+    },
+
+    // ---- Bem-estar ----
+    renderBemestarSection(bm, humorData) {
+        const copoEl = document.getElementById('bemestar-copos-sec');
+        const metaEl = document.getElementById('bemestar-meta-sec');
+        const dotsEl = document.getElementById('bemestar-dots-sec');
+        const sonoEl = document.getElementById('bemestar-sono-sec');
+
+        if (copoEl && bm) {
+            copoEl.textContent = bm.hidratacao?.copos || 0;
+            if (metaEl) metaEl.textContent = bm.hidratacao?.meta || 8;
+            if (dotsEl) {
+                const meta = bm.hidratacao?.meta || 8;
+                const copos = bm.hidratacao?.copos || 0;
+                dotsEl.innerHTML = Array.from({ length: meta }, (_, i) =>
+                    `<div style="width:16px;height:16px;border-radius:50%;background:${i < copos ? '#0dcaf0' : '#2a2a2a'};border:1px solid ${i < copos ? '#0dcaf0' : '#333'};"></div>`
+                ).join('');
+            }
+        }
+
+        if (sonoEl && bm?.sono) {
+            const ultimos = bm.sono.slice(-3);
+            if (ultimos.length === 0) {
+                sonoEl.innerHTML = '<span class="text-muted small">Nenhum registro esta semana.</span>';
+            } else {
+                sonoEl.innerHTML = ultimos.map(s =>
+                    `<div class="d-flex justify-content-between small mb-1">
+                        <span>${s.data || ''}</span>
+                        <span class="fw-bold">${s.horas || 0}h ${s.qualidade ? `— ${this.escapeHTML(s.qualidade)}` : ''}</span>
+                    </div>`
+                ).join('');
+            }
+        }
+
+        // Humor histórico
+        this.renderHumorHistorico(humorData);
+
+        // Restore selected mood
+        if (humorData && humorData.length > 0) {
+            const hoje = new Date().toLocaleDateString('pt-BR');
+            const reg = humorData.find(h => h.data === hoje);
+            if (reg) {
+                document.querySelectorAll('.fc-mood-btn').forEach(b => {
+                    b.classList.toggle('selecionado', parseInt(b.dataset.nivel) === reg.nivel);
+                });
+            }
+        }
+    },
+
+    renderHumorHistorico(humorData) {
+        const container = document.getElementById('humor-historico-sec');
+        if (!container) return;
+        const ultimos7 = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const key = d.toLocaleDateString('pt-BR');
+            const reg = (humorData || []).find(h => h.data === key);
+            ultimos7.push({ label: d.toLocaleDateString('pt-BR', { weekday: 'short' }), nivel: reg?.nivel || 0 });
+        }
+        const emojiMap = { 0: '—', 1: '😞', 2: '😕', 3: '😐', 4: '😊', 5: '😄' };
+        const colors = { 0: '#2a2a2a', 1: '#ef4444', 2: '#f97316', 3: '#eab308', 4: '#22c55e', 5: '#10b981' };
+        container.innerHTML = ultimos7.map(d => {
+            const h = ((d.nivel / 5) * 100) || 8;
+            return `<div class="d-flex flex-column align-items-center gap-1" style="flex:1;">
+                <span style="font-size:1.1rem;">${emojiMap[d.nivel]}</span>
+                <div style="width:100%;height:${h}%;background:${colors[d.nivel]};border-radius:3px;min-height:4px;"></div>
+                <span style="font-size:0.6rem;color:#666;">${d.label}</span>
+            </div>`;
+        }).join('');
+    },
+
+    // ---- Conquistas ----
+    renderConquistas(stats) {
+        const { totalCheckins, maxStreak, totalHabitos, totalMetas, metasConcluidas, minFoco, totalTarefas } = stats;
+
+        const renderBadges = (containerId, badges) => {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            el.innerHTML = badges.map(b => `
+                <div class="fc-badge-card ${b.desbloqueado ? 'desbloqueado' : 'bloqueado'}">
+                    <span class="fc-badge-icon">${b.icon}</span>
+                    <div class="fc-badge-title">${this.escapeHTML(b.titulo)}</div>
+                    <div class="fc-badge-desc">${this.escapeHTML(b.desc)}</div>
+                </div>`).join('');
+        };
+
+        const consistencia = [
+            { icon: '🔥', titulo: '3 Dias', desc: 'Streak de 3 dias', desbloqueado: maxStreak >= 3 },
+            { icon: '⚡', titulo: '7 Dias', desc: 'Streak de 7 dias', desbloqueado: maxStreak >= 7 },
+            { icon: '💎', titulo: '30 Dias', desc: 'Streak de 30 dias', desbloqueado: maxStreak >= 30 },
+            { icon: '👑', titulo: '90 Dias', desc: 'Streak de 90 dias', desbloqueado: maxStreak >= 90 },
+            { icon: '🌟', titulo: '180 Dias', desc: 'Streak de 180 dias', desbloqueado: maxStreak >= 180 },
+        ];
+        const frequencia = [
+            { icon: '✅', titulo: '10 Check-ins', desc: '10 check-ins totais', desbloqueado: totalCheckins >= 10 },
+            { icon: '🎯', titulo: '50 Check-ins', desc: '50 check-ins totais', desbloqueado: totalCheckins >= 50 },
+            { icon: '🚀', titulo: '100 Check-ins', desc: '100 check-ins', desbloqueado: totalCheckins >= 100 },
+            { icon: '🏆', titulo: '500 Check-ins', desc: '500 check-ins', desbloqueado: totalCheckins >= 500 },
+        ];
+        const compromisso = [
+            { icon: '🌱', titulo: 'Primeiro Hábito', desc: 'Criou 1 hábito', desbloqueado: totalHabitos >= 1 },
+            { icon: '🌿', titulo: '3 Hábitos', desc: 'Criou 3 hábitos', desbloqueado: totalHabitos >= 3 },
+            { icon: '🌳', titulo: '5 Hábitos', desc: 'Criou 5 hábitos', desbloqueado: totalHabitos >= 5 },
+            { icon: '🎪', titulo: 'Primeira Meta', desc: 'Criou 1 meta trimestral', desbloqueado: totalMetas >= 1 },
+            { icon: '🏅', titulo: 'Meta Concluída', desc: 'Concluiu uma meta', desbloqueado: metasConcluidas >= 1 },
+        ];
+        const avancadas = [
+            { icon: '⏱️', titulo: '60 Min Foco', desc: '1h em modo foco', desbloqueado: minFoco >= 60 },
+            { icon: '🧘', titulo: '5h de Foco', desc: '300 min focados', desbloqueado: minFoco >= 300 },
+            { icon: '⚔️', titulo: 'Guerreiro', desc: '1000 min de foco', desbloqueado: minFoco >= 1000 },
+            { icon: '📝', titulo: '10 Tarefas', desc: '10 tarefas concluídas', desbloqueado: (totalTarefas || 0) >= 10 },
+            { icon: '💪', titulo: '50 Tarefas', desc: '50 tarefas concluídas', desbloqueado: (totalTarefas || 0) >= 50 },
+        ];
+
+        renderBadges('conquistas-consistencia', consistencia);
+        renderBadges('conquistas-frequencia', frequencia);
+        renderBadges('conquistas-compromisso', compromisso);
+        renderBadges('conquistas-avancadas', avancadas);
+
+        const allBadges = [...consistencia, ...frequencia, ...compromisso, ...avancadas];
+        const total = allBadges.length;
+        const desbloqueados = allBadges.filter(b => b.desbloqueado).length;
+        const pct = total > 0 ? Math.round((desbloqueados / total) * 100) : 0;
+
+        const bar = document.getElementById('conquistas-progress-bar');
+        if (bar) bar.style.width = pct + '%';
+        const txt = document.getElementById('conquistas-progress-txt');
+        if (txt) txt.textContent = `${desbloqueados} de ${total} conquistas desbloqueadas (${pct}%)`;
+        const sub = document.getElementById('conquistas-subtitulo');
+        if (sub) sub.textContent = `${desbloqueados} de ${total} troféus desbloqueados`;
+    },
+
+    // ---- Dashboard analítico ----
+    renderSecaoDashboard(usuario) {
+        const hist = usuario.historico || [];
+        const tarefas = usuario.tarefas || [];
+        const habitos = usuario.habitos || [];
+
+        // Stats
+        const hoje = new Date().toLocaleDateString('pt-BR');
+        const hojeHist = hist.filter(h => h.data === hoje);
+        const minFocoHoje = hojeHist.reduce((s, h) => s + (h.minutos || 0), 0);
+        const tarefasHoje = hojeHist.length;
+        const maxStreak = habitos.reduce((s, h) => Math.max(s, h.streak || 0), 0);
+        const score = minFocoHoje + tarefasHoje * 5;
+
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        set('dsec-score', score);
+        set('dsec-tarefas', tarefasHoje);
+        set('dsec-foco', minFocoHoje);
+        set('dsec-streak', maxStreak + '🔥');
+
+        // Score line chart
+        const labels = [];
+        const scores = [];
+        for (let i = 13; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const key = d.toLocaleDateString('pt-BR');
+            labels.push(d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
+            const dayHist = hist.filter(h => h.data === key);
+            scores.push(dayHist.reduce((s, h) => s + (h.minutos || 0) + 5, 0));
+        }
+
+        const canvasScore = document.getElementById('chart-dash-score');
+        if (canvasScore) {
+            if (this.charts['dashScore']) this.charts['dashScore'].destroy();
+            this.charts['dashScore'] = new Chart(canvasScore, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: scores,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245,158,11,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#f59e0b',
+                    }]
+                },
+                options: {
+                    responsive: true, plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: '#222' } },
+                        y: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: '#222' }, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        // Distribution pie
+        const canvasPie = document.getElementById('chart-dash-distrib');
+        if (canvasPie) {
+            const q1 = tarefas.filter(t => t.importante && t.urgente).length;
+            const q2 = tarefas.filter(t => t.importante && !t.urgente).length;
+            const q3 = tarefas.filter(t => !t.importante && t.urgente).length;
+            const q4 = tarefas.filter(t => !t.importante && !t.urgente).length;
+            if (this.charts['dashPie']) this.charts['dashPie'].destroy();
+            this.charts['dashPie'] = new Chart(canvasPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Q1 Crise', 'Q2 Deep Work', 'Q3 Delegar', 'Q4 Eliminar'],
+                    datasets: [{ data: [q1, q2, q3, q4], backgroundColor: ['#ef4444', '#f59e0b', '#eab308', '#6b7280'], borderWidth: 0 }]
+                },
+                options: {
+                    responsive: true, cutout: '65%',
+                    plugins: { legend: { position: 'bottom', labels: { color: '#888', font: { size: 11 }, padding: 8 } } }
+                }
+            });
+        }
+    },
+
+    // ---- Metas ----
+    renderSecaoMetas(usuario) {
+        const container = document.getElementById('secao-metas-grid');
+        if (!container) return;
+        const metas = usuario.metasTrimestrais || [];
+
+        let html = '';
+        metas.forEach(m => {
+            const progresso = m.progresso || 0;
+            const concluida = m.concluida || progresso >= 100;
+            html += `
+            <div class="col-md-6">
+                <div class="fc-goal-card ${concluida ? 'concluida' : ''}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="fw-bold mb-1" style="color:#e5e5e5;">${this.escapeHTML(m.titulo || m.texto || 'Meta')}</div>
+                            ${m.descricao ? `<div class="text-muted small">${this.escapeHTML(m.descricao)}</div>` : ''}
+                        </div>
+                        ${concluida ? '<span style="font-size:1.4rem;">🏆</span>' : ''}
+                    </div>
+                    <div class="fc-goal-bar">
+                        <div class="fc-goal-fill" style="width:${Math.min(progresso, 100)}%;"></div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <span style="font-size:0.72rem;color:#666;">${progresso}%</span>
+                        <button class="btn btn-sm btn-link p-0 text-muted" onclick="App.Controller.editarMetaTrimestral && App.Controller.editarMetaTrimestral('${m.id}')">
+                            <i class="ph ph-pencil-simple"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        html += `<div class="col-md-6">
+            <button class="fc-add-goal-btn" onclick="App.Controller.abrirVisaoMacro()">
+                <i class="ph ph-plus me-2"></i> Adicionar Meta Trimestral
+            </button>
+        </div>`;
+
+        container.innerHTML = html;
+    },
+
+    // ---- Financeiro ----
+    renderSecaoFinanceiro(fin) {
+        if (!fin) return;
+        const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+        const transacoes = fin.transacoes || [];
+        const mesAtual = new Date().getMonth();
+        const anoAtual = new Date().getFullYear();
+        const doMes = transacoes.filter(t => {
+            const d = new Date(t.data);
+            return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+        });
+        const receitas = doMes.filter(t => t.tipo === 'receita').reduce((s, t) => s + (t.valor || 0), 0);
+        const gastos = doMes.filter(t => t.tipo === 'despesa').reduce((s, t) => s + (t.valor || 0), 0);
+        const investimentos = doMes.filter(t => t.tipo === 'investimento').reduce((s, t) => s + (t.valor || 0), 0);
+        const saldo = receitas - gastos - investimentos;
+
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        set('fin-sec-receitas', fmt(receitas));
+        set('fin-sec-gastos', fmt(gastos));
+        set('fin-sec-saldo', fmt(saldo));
+
+        const listaEl = document.getElementById('fin-sec-lista');
+        if (listaEl) {
+            const ultimas = [...transacoes].reverse().slice(0, 5);
+            if (ultimas.length === 0) {
+                listaEl.innerHTML = '<span class="text-muted small">Nenhuma transação ainda.</span>';
+            } else {
+                listaEl.innerHTML = ultimas.map(t => {
+                    const cor = t.tipo === 'receita' ? 'text-success' : t.tipo === 'investimento' ? 'text-info' : 'text-danger';
+                    const sinal = t.tipo === 'receita' ? '+' : '-';
+                    return `<div class="fc-fin-row" style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e1e1e;font-size:.82rem;">
+                        <span class="text-muted">${this.escapeHTML(t.descricao || 'Transação')}</span>
+                        <span class="fw-bold ${cor}">${sinal}${fmt(t.valor)}</span>
+                    </div>`;
+                }).join('');
+            }
+        }
+    },
+
+    // ---- Calendário / Heatmap ----
+    renderSecaoCalendario(usuario) {
+        const container = document.getElementById('fc-heatmap-grid');
+        if (!container) return;
+
+        const hist = usuario.historico || [];
+        const hoje = new Date();
+        const contagens = {};
+        hist.forEach(h => {
+            const key = h.data;
+            if (key) contagens[key] = (contagens[key] || 0) + 1;
+        });
+
+        // 53 semanas * 7 dias
+        const inicio = new Date(hoje);
+        inicio.setDate(inicio.getDate() - (53 * 7 - 1));
+
+        let html = '';
+        let cur = new Date(inicio);
+        for (let i = 0; i < 53 * 7; i++) {
+            const key = cur.toLocaleDateString('pt-BR');
+            const cnt = contagens[key] || 0;
+            const level = cnt === 0 ? 0 : cnt === 1 ? 1 : cnt <= 3 ? 2 : cnt <= 5 ? 3 : 4;
+            const dataStr = cur.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            html += `<div class="fc-heat-cell" ${level > 0 ? `data-level="${level}"` : ''} title="${dataStr}: ${cnt} atividades"></div>`;
+            cur.setDate(cur.getDate() + 1);
+        }
+        container.innerHTML = html;
     }
 };
